@@ -1,5 +1,4 @@
 import pandas as pd
-import time
 
 
 def import_lexique_as_df(path=r".\lexique383.xlsx"):
@@ -47,8 +46,7 @@ def set_ortho2phon(df, mots="1_ortho", phon="2_phon", occurances="10_freqlivres"
     :argument
     df: pd.dataframe contenant le lexique
 
-
-    :return dict
+    :return dict, pd.DataFrame
     """
     # ajout de l'accent au e a la fin des mots
     if accent_e:
@@ -58,22 +56,43 @@ def set_ortho2phon(df, mots="1_ortho", phon="2_phon", occurances="10_freqlivres"
 
     # on ne garde que les phonemes qui apparaissent le plus par orthographe
     idx = df_occ.groupby([mots])[occurances].transform(max) == df_occ[occurances]
-    df_uniqueorth = df_occ[[mots, phon]][idx]
+    df_o2p = df_occ[[mots, phon]][idx]
 
-    return pd.Series(df_uniqueorth.iloc[:, 1].values, index=df_uniqueorth.iloc[:, 0]).to_dict()
+    dict_o2p = pd.Series(df_o2p.iloc[:, 1].values, index=df_o2p.iloc[:, 0]).to_dict()
+
+    return dict_o2p, df_occ
 
 
-now = time.time()
-data = import_lexique_as_df()
-then = time.time()
-print(data.shape)
-print(then - now)
+def chars2idx(df, mots="1_ortho", phon="2_phon", blank="_"):
+    """
+    :param df: pd.dataframe contenant le lexique
+    :param mots: "1_ortho" variable de df contenant les orthographes
+    :param phon: "2_phon" variable de df contenant les phonemes
 
-dico2p = set_ortho2phon(data, accent_e=True)
-
-phonetique = list()
-for k, v in dico2p.items():
-    for c in v:
-        if c not in phonetique:
-            print("{} : {} : {}".format(c, k, v))
-            phonetique.append(c)
+    :return: 2 dictionnaires caractere indices des lettres et des ohonemes
+    """
+    ltrs = list()
+    phons = list()
+    m = df.shape[0]
+    tx = 0
+    ty = 0
+    for i in range(m):
+        mot = str(df.loc[i, mots])
+        if len(mot) > tx:
+            tx = len(mot)
+        for ltr in mot:
+            if ltr not in ltrs:
+                ltrs.append(ltr)
+        prononciation = str(df.loc[i, phon])
+        if len(prononciation) > ty:
+            ty = len(prononciation)
+        for ph in prononciation:
+            if ph not in phons:
+                phons.append(ph)
+    ltr2idx = {blank: len(ltrs)}
+    phon2idx = {blank: len(phons)}
+    for i, v in enumerate(ltrs):
+        ltr2idx[v] = i
+    for i, v in enumerate(phons):
+        phon2idx[v] = i
+    return ltr2idx, phon2idx, tx, ty
