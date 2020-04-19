@@ -59,7 +59,6 @@ def set_ortho2phon(df, mots="1_ortho", phon="2_phon", occurances="10_freqlivres"
     df_o2p = df_occ[[mots, phon]][idx]
 
     dict_o2p = pd.Series(df_o2p.iloc[:, 1].values, index=df_o2p.iloc[:, 0]).to_dict()
-
     return dict_o2p, df_occ
 
 
@@ -68,6 +67,7 @@ def chars2idx(df, mots="1_ortho", phon="2_phon", blank="_"):
     :param df: pd.dataframe contenant le lexique
     :param mots: "1_ortho" variable de df contenant les orthographes
     :param phon: "2_phon" variable de df contenant les phonemes
+    :param blank: "_" caractere a rajouter pour le padding
 
     :return: 2 dictionnaires caractere indices des lettres et des ohonemes
     """
