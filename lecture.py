@@ -1,13 +1,12 @@
-import preprocessing as pp
-# import time
+from trad_chiffre_mot import tradn
+import os
 import numpy as np
-from random import shuffle
 from scipy.sparse import csr_matrix
 import pandas as pd
 from nltk.tag import StanfordPOSTagger
+from nltk.tokenize import RegexpTokenizer
 import keras as k
 from sklearn.model_selection import train_test_split
-# from tqdm import tqdm
 
 
 def filter_length(df, n=8, phon="2_phon", sup_n=True):
@@ -113,70 +112,190 @@ def model_test(tx, ty, n_l, n_p, n_brnn1=32, n_h1=64):
     return net
 
 
-def tokenizer(phrase):
-    """
-    Tokeniseur maison qui sépare autour des espaces et les appostophes des mots plus courts que deux chars
-
-    :param phrase
-    :return: phrase tokenisee
-    """
-    # gestion appostrophes
-    splited_no_appostrophes = phrase.split("'")
-    splited_with_appostrophes = ["{}'".format(splited_no_appostrophes[i])
-                                 for i in range(len(splited_no_appostrophes) - 1)]
-    if len(splited_no_appostrophes[-1]) > 0:
-        splited_with_appostrophes.append(splited_no_appostrophes[-1])
-
-    # gestion des espaces
-    mots = list()
-    for sans_appostrophe in splited_with_appostrophes:
-        mots.extend(sans_appostrophe.split(" "))
-
-    idx_mot = 0
-    while idx_mot < len(mots) - 1:  # -1 pour ne pas aller sur le dernier mot
-        if mots[idx_mot][-1] == "'" and len(mots[idx_mot]) > 3:
-            mots[idx_mot] = "{}{}".format(mots[idx_mot], mots[idx_mot + 1])
-            mots.pop(idx_mot + 1)
-        else:
-            idx_mot += 1
-    return mots
-
-
 def pos_tag(mots,
             jar=r"C:\Users\remif\PythonRequired\stanford-postagger-full-2017-06-09\stanford-postagger-3.8.0.jar",
             mdl=r"C:\Users\remif\PythonRequired\stanford-postagger-full-2017-06-09\models\french-ud.tagger"):
-    pos_tagger = StanfordPOSTagger(mdl, jar, encoding='utf8')
-    return pos_tagger.tag(mots)
+    try:
+        pos_tagger = StanfordPOSTagger(mdl, jar, encoding='utf8')
+    except LookupError:
+        java_path = r"C:\Program Files (x86)\Java\jre1.8.0_251\bin\java.exe"
+        os.environ['JAVAHOME'] = java_path
+        pos_tagger = StanfordPOSTagger(mdl, jar, encoding='utf8')
+    tagged = pos_tagger.tag(mots)
+    tags = [g for m, g in tagged]
+    forced_det = ["au", "aux"]
+    absent_of_table = ["PART", "SCONJ"]
+    if any(item in mots for item in forced_det) or any(item in tags for item in absent_of_table):
+        for i, couple in enumerate(tagged):
+            mot = couple[0]
+            gram = couple[1]
+            if mot in forced_det:
+                tagged[i] = (mot, "DET")
+            if gram == "PART":
+                tagged[i] = (mot, "ADV")
+            if gram == "SCONJ":
+                tagged[i] = (mot, "CONJ")
+    return tagged
 
 
-def liaison(ortho1, ortho2, phon1, phon2):
-    voyelles_p = ['a', 'E', '§', 'o', 'O', '1', 'i', '5', 'e', 'u', '@', '°', '9', 'y', '2']
-    consonnes_p = ['k', 'p', 'l', 't', 'R', 'j', 'f', 's', 'd', 'Z', 'n', 'b', 'v', 'g',
-                'v', 'g', 'm', 'z', 'w', 'S', 'N', '8', 'G', 'x']
-    mot2_liable = (phon2[0] in voyelles_p) and (ortho2[0] != 'h')
-    if mot2_liable:
-        if ortho1[-1] in ['d']:
-            phon1 = "{}t".format(phon1)
-    return phon1, phon2
+def check_liaison(ortho1, ortho2, phon1, phon2, nat1, nat2, phrase, **kwargs):
+    """
+    Fonction qui verifie si la liaison est possible entre deux mots
+    :param ortho1: orthographe du mot en position 1
+    :param ortho2: orthographe du mot en position 2
+    :param phon1: phonemes du mot en position 1
+    :param phon2: phonemes du mot en position 2
+    :param nat1: nature du mot en position 1
+    :param nat2: nature du mot en position 2
+    :param phrase: phrase de contexte
+
+    :return: booleen sur la possibilite de liaison
+    """
+    voyelles_p = kwargs.get("voyelles_p", ['a', 'E', '§', 'o', 'O', '1', 'i', '5', 'e', 'u', '@', '°', '9', 'y', '2'])
+    consonnes_liaisons = {'d': ['d'], 'p': ["p"], 'r': ["R"], 's': ['s', 'z'], 't': ['t'], 'x': ['s', 'z'],
+                          'n': ['n', 'G'], 'z': ['z', 's']}
+    liables = False
+    mot2_voyelle = (phon2[0] in voyelles_p) and (ortho2[0] != 'h')
+    if mot2_voyelle:
+        mot1_consonne_liaison = (ortho1[-1] in consonnes_liaisons.keys()) and\
+                                (phon1[-1] not in consonnes_liaisons[ortho1[-1]])
+        if mot1_consonne_liaison:
+            mot1_dern_son_voyelle = (ortho1[-1] in consonnes_liaisons.keys()) and (phon1[-1] in voyelles_p)
+            pas_ponctuation = (" ".join([ortho1, ortho2]) in phrase) or ("-".join([ortho1, ortho2]) in phrase)
+            if pas_ponctuation:
+                if (nat1 in ["NUM", "DET", "ADJ"]) and (nat2 in ["NOUN", "PROPN"]):
+                    liables = True
+                elif ortho1 in ["on", "nous", "vous", "ils", "elles", "en", "tout"] and nat2 in ["AUX", "VERB"]:
+                    liables = True
+                elif nat1 in ["AUX", "VERB"] and mot1_dern_son_voyelle:
+                    liables = True
+                elif nat1 in ["ADP"]:
+                    liables = True
+                elif (nat1 in ["NOUN"]) and (ortho1[-1] in ['s']) and (nat2 in ["ADJ"]):
+                    liables = True
+                elif (nat1 == "ADV") and (nat2 in ["ADV", "ADJ", "NOUN"]):
+                    liables = True
+                elif (ortho1 == "quand") and (nat2 not in ["AUX", "VERB"]):
+                    liables = True
+                elif (ortho1 == "plus") and (ortho2 == "ou"):
+                    liables = True
+                elif (ortho1 == "tout") and (ortho2 in ["à", "autour"]):
+                    liables = True
+    return liables
+
+
+def liaison(ortho1, ortho2, phon1, phon2, nat1, nat2, phrase, **kwargs):
+    dico_liaisons_simples = kwargs.get("dico_liaisons", {'d': 't', 'p': 'p', 's': 'z', 't': 't', 'x': 'z', 'z': 'z'})
+    mots_nasale_simples = kwargs.get("mots_nasale_simples", ["aucun", "bien", "en", "on", "rien", "un", "non", "mon",
+                                                             "ton", "son"])
+    liaison_a_faire = check_liaison(ortho1, ortho2, phon1, phon2, nat1, nat2, phrase, **kwargs)
+    if liaison_a_faire:
+        derniere_lettre = ortho1[-1]
+        if derniere_lettre in dico_liaisons_simples.keys():
+            phon1 = "{}{}".format(phon1, dico_liaisons_simples[derniere_lettre])
+        if derniere_lettre == 'r' and phon1[-1] == "e":  # comme "premier"
+            phon1 = "{}{}".format(phon1[:-1], "ER")
+        if derniere_lettre == 'n':  # comme "bon", "certain", "commun"
+            dernier_phoneme = phon1[-1]
+            if (ortho1 in mots_nasale_simples) or (dernier_phoneme == "1"):
+                phon1 = "{}{}".format(phon1, 'n')
+            else:
+                if dernier_phoneme == "§":
+                    phon1 = "{}{}".format(phon1[:-1], "On")
+                if dernier_phoneme == "@" and ortho1[-2:] == "an":
+                    phon1 = "{}{}".format(phon1[:-1], "an")
+                if dernier_phoneme == "5":
+                    if ortho1[-2:] == "en":
+                        phon1 = "{}{}".format(phon1[:-1], "En")
+                    if ortho1[-2:] == "in":
+                        phon1 = "{}{}".format(phon1[:-1], "in")
+                    if ortho1[-3:] in ["ein", "ain"]:
+                        phon1 = "{}{}".format(phon1[:-2], "En")
+    return phon1
 
 
 # for _, mot, phon in df_w2p.loc[:, ['1_ortho', '2_phon']].itertuples():
 #     if phon[0] in consonnes_p:  # and phon[-1] in consonnes:
 #         print("{} : {}".format(mot, phon))
 
+def e_final(mot, prononciation1, prononciation2):
+    e_potentiel = (mot[-1] == 'e') or (mot[-2:] == 'es') or (mot[-3:] == 'ent')
+    son_final = prononciation1[-1]
+    son_initial = prononciation2[0]
+    consonnes_p = ['k', 'p', 'l', 't', 'R', 'j', 'f', 's', 'd', 'Z', 'n', 'b', 'v', 'g',
+                   'v', 'g', 'm', 'z', 'w', 'S', 'N', '8', 'G', 'x']
+    if e_potentiel and (son_final in consonnes_p) and (son_initial in consonnes_p):
+        prononciation1 = "{}°".format(prononciation1)
+    return prononciation1
+
+
+def liaisons_tokens(mots, prononciation, pos_mots, phrase):
+    n = len(prononciation)
+    for i in range(n - 1):
+        prononciation[i] = liaison(mots[i], mots[i + 1], prononciation[i], prononciation[i + 1],
+                                   pos_mots[i], pos_mots[i + 1], phrase.lower())
+    return prononciation
+
+
+def e_final_tokens(mots, prononciation):
+    n = len(prononciation)
+    for i in range(n - 1):
+        prononciation[i] = e_final(mots[i], prononciation[i], prononciation[i+1])
+    return prononciation
+
+
 class Lecteur:
     """"Classe definissant le lecteur
     """
-    def __init__(self, tx, ty, l2idx, p2idx, n_brnn1=90, n_h1=80, net=None, blank="_"):
+
+    def __init__(self, tx, ty, l2idx, p2idx, dico_unique, dico_multiple, n_brnn1=90, n_h1=80, net=None, blank="_"):
         self.tx = tx
         self.ty = ty
         self.l2idx = l2idx
         self.p2idx = p2idx
+        self._dico_unique = dico_unique
+        self._ortho_unique = dico_unique.keys()
+        self._dico_multiple = dico_multiple
+        self._ortho_multiple = list(set([w for w, _ in dico_multiple.keys()]))
         self.n_brnn1 = n_brnn1
         self.n_h1 = n_h1
         self.net = net
         self.blank = blank
+        self.count_lecture = 0
 
+    # setters et getters
+    def _get_dico_unique(self):
+        return self._dico_unique
+
+    def _set_dico_unique(self, dico_unique):
+        self._dico_unique = dico_unique
+        self._ortho_unique = dico_unique.keys()
+
+    def _get_ortho_unique(self):
+        return self._ortho_unique
+
+    def _set_ortho_unique(self, valeur):
+        raise AttributeError("ortho_unique ne peut pas etre modifie")
+
+    def _get_dico_multiple(self):
+        return self._dico_multiple
+
+    def _set_dico_multiple(self, dico_multiple):
+        self._dico_multiple = dico_multiple
+        self._ortho_multiple = list(set([w for w, _ in dico_multiple.keys()]))
+
+    def _get_ortho_multiple(self):
+        return self._ortho_multiple
+
+    def _set_ortho_multiple(self, valeur):
+        raise AttributeError("ortho_multiple ne peut pas etre modifie")
+
+    dico_unique = property(fget=_get_dico_unique, fset=_set_dico_unique)
+    ortho_unique = property(fget=_get_ortho_unique, fset=_set_ortho_unique)
+    dico_multiple = property(fget=_get_dico_multiple, fset=_set_dico_multiple)
+    ortho_multiple = property(fget=_get_ortho_multiple, fset=_set_ortho_multiple)
+
+    # methodes
     def one_hot_from_list(self, data):
         """
         :param data:
@@ -245,30 +364,102 @@ class Lecteur:
         self.net.fit([x, c0, h0], y_list, epochs=epochs, batch_size=batch_size)
         return self.net
 
-    def lire(self, mot):
-        mot = str(mot)
-        mot = "{m}{b}".format(m=mot, b=self.blank * (self.tx + 1 - len(mot)))
-        lettres = [self.l2idx[lettre] for lettre in mot]
-        n_l = len(self.l2idx.keys())
-        x = np.zeros((1, self.tx + 1, n_l))
-        h0 = csr_matrix((1, self.n_h1))
-        c0 = csr_matrix((1, self.n_h1))
-        for i, lettre in enumerate(lettres):
-            x[0, i, lettre] = 1
-        y = self.net.predict(x=[x, c0, h0])
-        idx2p = dict()
-        for p, idx in self.p2idx.items():
-            idx2p[idx] = p
-        pron_int = np.concatenate(y).argmax(axis=1).tolist()
-        prononciation = ""
-        for idx in pron_int:
-            prononciation = "{phons}{p}".format(phons=prononciation, p=idx2p[idx]).replace(self.blank, "")
-        return prononciation
+    def regex_lecteur(self, phrase, trad_numbers=False):
+        if trad_numbers:
+            reg0 = "0-9"
+        else:
+            reg0 = ""
+        skip = [" ", ".", '-', self.blank]  # elements a ne pas prendre en compte lors de l'expression reguliere
+        trait_dunion = False
+        for c in self.l2idx.keys():
+            if c == '-':
+                trait_dunion = True
+            if c not in skip:
+                reg0 = "{}{}".format(reg0, c)
+        if trait_dunion:
+            reg0 = "{}-".format(reg0)
+        reg = "[{}]+".format(reg0)
+        res = RegexpTokenizer(reg).tokenize(phrase)
+        return res
 
-    def lire_phrase(self, phrase):
-        # tokenisation
-        mots = tokenizer(phrase)
+    def tirets_appostrophes(self, a_decouper):
+        # appostrophes
+        if a_decouper[0] == "'":
+            a_decouper = a_decouper[1:]
+        a_decouper = [splitted for splitted in a_decouper.split("'") if len(splitted) > 0]
+        if len(a_decouper) > 1:
+            for i in range(len(a_decouper) - 1):
+                a_decouper[i] = "{}'".format(a_decouper[i])
 
+        # traits-d'union
+        decoupe = list()
+        if a_decouper[-1][-1] == '-':
+            a_decouper[-1] = a_decouper[-1][:-1]
+        for partie in a_decouper:
+            partie_splitted = [par for par in partie.split("-") if len(par) > 0]
+            if len(partie_splitted) > 1:
+                for i in range(1, len(partie_splitted)):
+                    partie_splitted[i] = "-{}".format(partie_splitted[i])
+            decoupe.extend(partie_splitted)
+
+        # recherche dans le vocabulaire
+        tokens = list()  # liste de tokens a retourner
+        while len(decoupe) > 0:  # decoupe est reduite a mesure que tokens se remplit
+            p = len(decoupe)
+            if decoupe[0][0] == '-':  # si le premier caractere est un trait d'union, on l'enleve
+                decoupe[0] = decoupe[0][1:]
+            element = "".join(decoupe)  # on forme un mot avec les elements
+            element_know = (element in self.ortho_unique) or (element in self.ortho_multiple)
+            while not element_know and p > 1:  # le nombre d'elements diminue jusqu'a ce qu'un mot connu apparaisse
+                p -= 1
+                element = "".join(decoupe[:p])
+                element_know = (element in self.ortho_unique) or (element in self.ortho_multiple)
+            tokens.append(element)
+            decoupe = decoupe[p:]  # on eleve de decoupe les parties tokenisees
+        return tokens
+
+    def tokenizer(self, phrase):
+        """
+        Tokeniseur maison qui sépare autour des espaces et les appostophes des mots plus courts que deux chars
+
+        :param phrase
+        :return: phrase tokenisee
+        """
+        # minuscules
+        phrase = phrase.lower()
+
+        # oe et ae
+        phrase = phrase.replace("œ", "oe")
+        phrase = phrase.replace("æ", "ae")
+
+        # appostrophes
+        phrase = phrase.replace("’", "'")
+
+        # regex
+        tokens = self.regex_lecteur(phrase, trad_numbers=True)
+
+        # appostrophes/traits-d'unions
+        i = 0
+        while i < len(tokens):
+            tok = tokens[i]
+            if any(appostrophe_ou_trait in tok for appostrophe_ou_trait in ['-', "'"]):
+                tokens.pop(i)
+                tokens_to_add = self.tirets_appostrophes(tok)
+                for token_to_add in tokens_to_add:
+                    tokens.insert(i, token_to_add)
+                    i += 1
+            else:
+                i += 1
+
+        # nombres
+        for i, tok in enumerate(tokens):
+            if tok.isdigit():
+                tokens[i] = tradn(int(tok))
+        phrase = " ".join(tokens)
+        tokens = self.regex_lecteur(phrase, trad_numbers=False)
+        return tokens
+
+    def lire_nn(self, mots):
         # one hot
         m = len(mots)
         n_l = len(self.l2idx)
@@ -297,16 +488,109 @@ class Lecteur:
             pron_int[:, :, i] = y[i]
         pron_int = pron_int.argmax(axis=1)  # one hot vers indices phonemes
 
-        prononciation = ""
-        for i in range(m):
-            if i > 0:
-                prononciation += " "  # peut-etre a enlever apres le scrapping
+        # creation dico
+        prononciation = dict()
+        for i, mot in enumerate(mots):
             prononciation_mot = ""
             for idx in pron_int[i, :].tolist():
                 prononciation_mot = "{phons}{p}".format(phons=prononciation_mot,
                                                         p=idx2p[idx]).replace(self.blank, "")
-            prononciation += prononciation_mot
+            prononciation[mot] = prononciation_mot
         return prononciation
+
+    def lire_mots(self, mots):
+        # dicos
+        mots_unique = set()
+        mots_multiples = set()
+        mots_nn = set()
+        pos_mots = pos_tag(mots)
+        dico_nn = 0
+        for mot in mots:
+            if mot in self.ortho_unique:
+                mots_unique.update([mot])
+            elif mot in self.ortho_multiple:
+                mots_multiples.update([mot])
+            else:
+                mots_nn.update([mot])
+        if len(mots_multiples) > 0:
+            for m, p in pos_mots:
+                if m in mots_multiples and (m, p) not in self.dico_multiple.keys():
+                    mots_multiples.remove(m)
+                    mots_nn.update([m])
+        if len(mots_nn) > 0:
+            dico_nn = self.lire_nn(mots_nn)
+        prononciation = list()
+        for i, mot in enumerate(mots):
+            prononciation_mot = ""
+            if mot in mots_unique:
+                prononciation_mot = self.dico_unique[mot]
+            elif mot in mots_multiples:
+                prononciation_mot = self.dico_multiple[pos_mots[i]]
+            elif mot in mots_nn:
+                prononciation_mot = dico_nn[mot]
+            prononciation.append(prononciation_mot)
+        return prononciation
+
+    def lire_strophe(self, strophe, ponctuation=None):
+        if ponctuation is None:
+            ponctuation = ['.', ',', '!', '?', "…"]
+
+        # separation en phrases
+        text_strophe = " ".join(strophe)
+        reg0 = "".join(ponctuation)
+        reg0 = "(?:(?![{caracteres_a_eviter}]).)+".format(caracteres_a_eviter=reg0)
+        phrases_strophe = [phrase for phrase in RegexpTokenizer(reg0).tokenize(text_strophe) if len(phrase) > 0]
+
+        # lecture des phrases
+        phrases_lues = list()
+        pos_phrases = list()
+        for phrase in phrases_strophe:
+            tokens_phrase = self.tokenizer(phrase)
+            phrases_lues.extend(self.lire_mots(tokens_phrase))
+            pos_phrases.extend(pos_tag(tokens_phrase))
+        return phrases_lues, pos_phrases
+
+    def lire_poem(self, poem):
+        print(self.count_lecture)
+        self.count_lecture += 1
+        poem_phonemes_tokens = list()
+        for strophe in poem:
+            strophe_tokens = list()
+            strophe_phonemes_tokens = list()
+            pos_strophe = list()
+            # enlever phrase_a_lire de la boucle et utiliser un helper pour decouper la strophe en phrases
+            for ver in strophe:
+                ver_tokens = self.tokenizer(ver)
+                n_tok_ver = len(ver_tokens)
+                strophe_tokens.append(ver_tokens)
+                strophe_phonemes_tokens.append(n_tok_ver * [''])
+                pos_strophe.append(n_tok_ver * [''])
+            phrase_lue, pos_phrase = self.lire_strophe(strophe)
+            i = 0
+            j = 0
+            for idx, phoneme_mot in enumerate(phrase_lue):
+                while len(strophe_phonemes_tokens[j]) == 0:
+                    strophe_phonemes_tokens[j] = ""
+                    pos_strophe[j] = []
+                    i = 0
+                    j += 1
+                strophe_phonemes_tokens[j][i] = phoneme_mot
+                pos_strophe[j][i] = pos_phrase[idx]
+                i += 1
+                if i == len(strophe_phonemes_tokens[j]):
+                    i = 0
+                    j += 1
+            for idx in range(len(strophe_phonemes_tokens)):
+                if len(strophe_phonemes_tokens[idx]) > 1:
+                    strophe_phonemes_tokens[idx] = e_final_tokens(strophe_tokens[idx], strophe_phonemes_tokens[idx])
+                    strophe_phonemes_tokens[idx] = liaisons_tokens(strophe_tokens[idx],
+                                                                   strophe_phonemes_tokens[idx], pos_strophe[idx],
+                                                                   strophe[idx])
+                    strophe_phonemes_tokens[idx] = "".join(strophe_phonemes_tokens[idx])
+            if strophe_phonemes_tokens == [[]]:
+                strophe_phonemes_tokens = ['']
+            poem_phonemes_tokens.append(strophe_phonemes_tokens)
+        return poem_phonemes_tokens
 
     def evaluate_model_from_lists(self, liste, batch_size=256):
         """
@@ -358,52 +642,5 @@ class Lecteur:
         self.net.save(path)
 
 
-_, df_w2p = pp.set_ortho2phon(pp.import_lexique_as_df(), accent_e=False)
-# df_w2p = pd.DataFrame(data={"1_ortho": ["vache", "cheval", "fghui"],
-#                             "2_phon": ["vache", "cval", "fgh8ui"],
-#                             "10_freqlivres": [0.1, 8.4, 2.1]})
-# _, ts_l = train_dev(df_w2p, m=1600000, forced_train=[r"où"], ln_dist=True)
-df_inf8 = filter_length(df_w2p, n=10, sup_n=False)
-tr_l, _ = train_dev(df_inf8, m=400000, forced_train=[r"où"], ln_dist=True)
-df_sup8 = filter_length(df_w2p, n=10, sup_n=True)
-tr_l_sup8, _ = train_dev(df_sup8, m=400000, forced_train=[r"où"], ln_dist=True)
-tr_l.extend(tr_l_sup8)
-# ts_l.extend(ts_l_sup8)
-shuffle(tr_l)
-# shuffle(ts_l)
-
-ltr2idx, phon2idx, Tx, Ty = pp.chars2idx(df_w2p)
-mdl = k.models.load_model(r"C:\Users\remif\PycharmProjects\PoemesProfonds\CE1_T11_redouble.h5")
-lecteur = Lecteur(Tx, Ty, ltr2idx, phon2idx, n_brnn1=90, n_h1=80, net=mdl, blank="_")
-
-x_train, y_train = lecteur.one_hot_from_list(tr_l)
-
-# clone = model(Tx + 1, Ty + 1, len(ltr2idx), len(phon2idx), n_brnn1=90, n_h1=80)
-# clone.summary()
-#
-# clone.load_weights(r"C:\Users\remif\PycharmProjects\PoemesProfonds\CE1_T5.h5")
-
-lecteur.compile_train(x_train, y_train, epochs=1, batch_size=64,
-                      opt=k.optimizers.Adam(learning_rate=0.00025, beta_1=0.9, beta_2=0.999))
-
-lecteur.save(r"C:\Users\remif\PycharmProjects\PoemesProfonds\CE1_T12_l10.h5")
-
-# evaluate_model_from_lists(ts_l, Tx, Ty, ltr2idx, phon2idx, lecteur, batch_size=256, n_h1=80)
-# print(lire("montmartre", lecteur, ltr2idx, phon2idx, Tx, blank="_"))
-#
-# miss = mispredicted(ts_l, lecteur, Tx, Ty, ltr2idx, phon2idx, n_h1=80, batch_size=128)
-
-# from tensorflow.python.client import device_lib
-#
-#
-# def get_available_gpus():
-#     local_device_protos = device_lib.list_local_devices()
-#     return [x.name for x in local_device_protos if x.device_type == 'GPU']
-
-# clone = k.models.clone_model(lecteur)
-# for i, layer in enumerate(clone.layers):
-#     if type(layer) is k.layers.Dropout:
-#         clone.layers[i].rate = 0.1
-# clone.compile(optimizer=k.optimizers.Adam(learning_rate=0.0000025, beta_1=0.9, decay=0.999),
-#               loss="categorical_crossentropy", metrics=["accuracy"])
-# clone.load_weights(".\CP_GPU5.h5")
+if __name__ == "lecture":
+    os.environ['JAVAHOME'] = r"C:\Program Files (x86)\Java\jre1.8.0_251\bin\java.exe"
