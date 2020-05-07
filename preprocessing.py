@@ -1,11 +1,11 @@
 import pandas as pd
+from collections import Counter
 
 
-def import_lexique_as_df(path=r".\lexique383.xlsx"):
+def import_lexique_as_df(path=r".\lexique3832.xlsx"):
     """importe le lexique
 
-    :argument
-    path=r".\lexique383.xlsx" chemin du fichier
+    :param path: lexique3832.xlsx chemin du fichier
 
     :return pd.dataframe
     """
@@ -40,7 +40,8 @@ def accent_e_fin(df, motsvar="1_ortho", phonvar="2_phon", **kwargs):
     return df
 
 
-def set_ortho2phon(df, mots="1_ortho", phon="2_phon", occurances="10_freqlivres", accent_e=False, **kwargs):
+def set_ortho2phon(df, mots="1_ortho", phon="2_phon", gram="4_grampos",
+                   occurances="10_freqlivres", accent_e=False, **kwargs):
     """crée un dictionnaire mappant pour chaque mot à sa prononciation
 
     :argument
@@ -54,12 +55,38 @@ def set_ortho2phon(df, mots="1_ortho", phon="2_phon", occurances="10_freqlivres"
     # creation df rassemblant la frequence de la prononciation de chaque orthographe
     df_occ = df[[mots, phon, occurances]].groupby([mots, phon], as_index=False).agg({occurances: "sum"})
 
-    # on ne garde que les phonemes qui apparaissent le plus par orthographe
-    idx = df_occ.groupby([mots])[occurances].transform(max) == df_occ[occurances]
-    df_o2p = df_occ[[mots, phon]][idx]
+    # # on ne garde que les phonemes qui apparaissent le plus par orthographe
+    # idx = df_occ.groupby([mots])[occurances].transform(max) == df_occ[occurances]
+    # df_o2p = df_occ[[mots, phon]][idx]
 
-    dict_o2p = pd.Series(df_o2p.iloc[:, 1].values, index=df_o2p.iloc[:, 0]).to_dict()
-    return dict_o2p, df_occ
+    # dict_o2p = pd.Series(df_o2p.iloc[:, 1].values, index=df_o2p.iloc[:, 0]).to_dict()
+
+    # récupération des couples uniques (orthographe, phonemes)
+    subset = df[[mots, phon]]
+    tuples = list(set([tuple(x) for x in subset.to_numpy()]))
+
+    # comptage des prononciations possibles de chaque orthographe
+    words = [w for w, _ in tuples]
+    word_count = Counter(words)
+
+    # separation des mots avec une ou plusieurs prononciations
+    unique_phoneme = list()
+    multiple_phoneme = list()
+    for w, c in word_count.items():
+        if c == 1:
+            unique_phoneme.append(w)
+        elif c > 1:
+            multiple_phoneme.append(w)
+
+    # dico mots uniques {ortho: phoneme}
+    dico_uniques = {w: p for w, p in tuples if w in unique_phoneme}
+
+    # dico mots multiples {(ortho, gram): phoneme}
+    idx_multiples = df.loc[:, "1_ortho"].apply(lambda x: x in multiple_phoneme)  # indices des ortho avec des phon mult
+    subset = df.loc[idx_multiples, [mots, gram, phon]]
+    dico_multiples = {(w, g): p for w, g, p in [tuple(x) for x in subset.to_numpy()]}
+
+    return dico_uniques, dico_multiples, df_occ
 
 
 def chars2idx(df, mots="1_ortho", phon="2_phon", blank="_"):
@@ -96,3 +123,11 @@ def chars2idx(df, mots="1_ortho", phon="2_phon", blank="_"):
     for i, v in enumerate(phons):
         phon2idx[v] = i
     return ltr2idx, phon2idx, tx, ty
+
+
+def import_poems(path=r".\scraping.xlsx"):
+    df = pd.read_excel(path, encoding="utf-8")
+    idx = df["poem"].notna()
+    df = df.loc[idx, :]
+    df["liste_vers"] = df["poem"].apply(lambda x: [strophe.split(r"þ") for strophe in x.split(r"þþ")])
+    return df
