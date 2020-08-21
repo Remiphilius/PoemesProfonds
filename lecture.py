@@ -152,10 +152,11 @@ def check_liaison(ortho1, ortho2, phon1, phon2, nat1, nat2, phrase, **kwargs):
     :return: booleen sur la possibilite de liaison
     """
     voyelles_p = kwargs.get("voyelles_p", ['a', 'E', '§', 'o', 'O', '1', 'i', '5', 'e', 'u', '@', '°', '9', 'y', '2'])
+    y_p = kwargs.get("y_p", ['w', 'j', '8'])
     consonnes_liaisons = {'d': ['d'], 'p': ["p"], 'r': ["R"], 's': ['s', 'z'], 't': ['t'], 'x': ['s', 'z'],
                           'n': ['n', 'G'], 'z': ['z', 's']}
     liables = False
-    mot2_voyelle = (phon2[0] in voyelles_p) and (ortho2[0] != 'h')
+    mot2_voyelle = ((phon2[0] in y_p) or (phon2[0] in voyelles_p)) and (ortho2[0] != 'h')
     if mot2_voyelle:
         mot1_consonne_liaison = (ortho1[-1] in consonnes_liaisons.keys()) and\
                                 (phon1[-1] not in consonnes_liaisons[ortho1[-1]])
@@ -214,10 +215,6 @@ def liaison(ortho1, ortho2, phon1, phon2, nat1, nat2, phrase, **kwargs):
     return phon1
 
 
-# for _, mot, phon in df_w2p.loc[:, ['1_ortho', '2_phon']].itertuples():
-#     if phon[0] in consonnes_p:  # and phon[-1] in consonnes:
-#         print("{} : {}".format(mot, phon))
-
 def e_final(mot, prononciation1, prononciation2):
     e_potentiel = (mot[-1] == 'e') or (mot[-2:] == 'es') or (mot[-3:] == 'ent')
     son_final = prononciation1[-1]
@@ -233,7 +230,7 @@ def liaisons_tokens(mots, prononciation, pos_mots, phrase):
     n = len(prononciation)
     for i in range(n - 1):
         prononciation[i] = liaison(mots[i], mots[i + 1], prononciation[i], prononciation[i + 1],
-                                   pos_mots[i], pos_mots[i + 1], phrase.lower())
+                                   pos_mots[i][1], pos_mots[i + 1][1], phrase.lower())
     return prononciation
 
 
@@ -298,7 +295,7 @@ class Lecteur:
     # methodes
     def one_hot_from_list(self, data):
         """
-        :param data:
+        :param data: liste des couples (mot, phonemes)
 
         :return:
         """
@@ -442,7 +439,7 @@ class Lecteur:
         i = 0
         while i < len(tokens):
             tok = tokens[i]
-            if any(appostrophe_ou_trait in tok for appostrophe_ou_trait in ['-', "'"]):
+            if any(appostrophe_ou_trait in tok for appostrophe_ou_trait in ['-', "'"]) and len(tok) > 1:
                 tokens.pop(i)
                 tokens_to_add = self.tirets_appostrophes(tok)
                 for token_to_add in tokens_to_add:
@@ -458,6 +455,18 @@ class Lecteur:
         phrase = " ".join(tokens)
         tokens = self.regex_lecteur(phrase, trad_numbers=False)
         return tokens
+
+    def tokenizer_poem(self, poem):
+        print(self.count_lecture)
+        self.count_lecture += 1
+        poem_tokens = list()
+        for strophe in poem:
+            strophe_tokens = list()
+            for ver in strophe:
+                ver_tokens = self.tokenizer(ver)
+                strophe_tokens.append(ver_tokens)
+            poem_tokens.append(strophe_tokens)
+        return poem_tokens
 
     def lire_nn(self, mots):
         # one hot
@@ -531,6 +540,24 @@ class Lecteur:
             prononciation.append(prononciation_mot)
         return prononciation
 
+    def lire_vers(self, vers, count=False):
+        """
+        Lit un vers
+        :param vers: Chaine de caracteres du vers
+        :param count: Si l'on souhaite compter le nombre de vers que l'on lit
+        :return: vers lu sous la forme d'une string de phonemes non espaces
+        """
+        if count:
+            print(self.count_lecture)
+            self.count_lecture += 1
+        tokens = self.tokenizer(vers)
+        pos = pos_tag(tokens)
+        mots_lus = self.lire_mots(tokens)
+        mots_lus_avec_e = e_final_tokens(tokens, mots_lus)
+        mots_lus_liaisons = liaisons_tokens(tokens, mots_lus_avec_e, pos, vers)
+        vers_lu = "".join(mots_lus_liaisons)
+        return vers_lu
+
     def lire_strophe(self, strophe, ponctuation=None):
         if ponctuation is None:
             ponctuation = ['.', ',', '!', '?', "…"]
@@ -550,22 +577,23 @@ class Lecteur:
             pos_phrases.extend(pos_tag(tokens_phrase))
         return phrases_lues, pos_phrases
 
-    def lire_poem(self, poem):
+    def lire_poem(self, poem_tokens, poem_text):
         print(self.count_lecture)
         self.count_lecture += 1
         poem_phonemes_tokens = list()
-        for strophe in poem:
-            strophe_tokens = list()
+        assert len(poem_tokens) == len(poem_text), "Les listes de textes et des tokens ont des longueurs differentes"
+        for idx_s, strophe in enumerate(poem_tokens):
+            strophe_text = poem_text[idx_s]
             strophe_phonemes_tokens = list()
             pos_strophe = list()
-            # enlever phrase_a_lire de la boucle et utiliser un helper pour decouper la strophe en phrases
-            for ver in strophe:
-                ver_tokens = self.tokenizer(ver)
+            phrase_a_lire = list()
+            for ver_tokens in strophe:
                 n_tok_ver = len(ver_tokens)
-                strophe_tokens.append(ver_tokens)
+                phrase_a_lire.extend(ver_tokens)
                 strophe_phonemes_tokens.append(n_tok_ver * [''])
                 pos_strophe.append(n_tok_ver * [''])
-            phrase_lue, pos_phrase = self.lire_strophe(strophe)
+            phrase_lue = self.lire_mots(phrase_a_lire)
+            pos_phrase = pos_tag(phrase_a_lire)
             i = 0
             j = 0
             for idx, phoneme_mot in enumerate(phrase_lue):
@@ -582,10 +610,10 @@ class Lecteur:
                     j += 1
             for idx in range(len(strophe_phonemes_tokens)):
                 if len(strophe_phonemes_tokens[idx]) > 1:
-                    strophe_phonemes_tokens[idx] = e_final_tokens(strophe_tokens[idx], strophe_phonemes_tokens[idx])
-                    strophe_phonemes_tokens[idx] = liaisons_tokens(strophe_tokens[idx],
+                    strophe_phonemes_tokens[idx] = e_final_tokens(strophe[idx], strophe_phonemes_tokens[idx])
+                    strophe_phonemes_tokens[idx] = liaisons_tokens(strophe[idx],
                                                                    strophe_phonemes_tokens[idx], pos_strophe[idx],
-                                                                   strophe[idx])
+                                                                   strophe_text[idx])
                     strophe_phonemes_tokens[idx] = "".join(strophe_phonemes_tokens[idx])
             if strophe_phonemes_tokens == [[]]:
                 strophe_phonemes_tokens = ['']
