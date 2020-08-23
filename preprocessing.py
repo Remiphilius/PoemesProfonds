@@ -17,12 +17,11 @@ def import_lexique_as_df(path=r".\lexique3832.xlsx"):
 
 def accent_e_fin(df, motsvar="1_ortho", phonvar="2_phon", **kwargs):
     """"
-    :argument
-    df: pd.dataframe contenant le lexique
-    motsvar="1_ortho" variable de df contenant les orthographes
-    phonvar="2_phon" variable de df contenant les phonemes auxquels il faut ajouter le E final
-    phoneme="°" phoneme du E final
-    pcvvar="18_p_cvcv" variable du df contenant les voyelles et consonnes phonemes
+    :param df: pd.dataframe contenant le lexique
+    :param motsvar: "1_ortho" variable de df contenant les orthographes
+    :param phonvar: "2_phon" variable de df contenant les phonemes auxquels il faut ajouter le E final
+    :param phoneme: phoneme du E final (default symbole du degre)
+    :param pcvvar: "18_p_cvcv" variable du df contenant les voyelles et consonnes phonemes
 
     :return
     pd.dataframe avec phoneme a la fin de phonvar pour signifier les E

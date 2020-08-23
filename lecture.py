@@ -671,4 +671,4 @@ class Lecteur:
 
 
 if __name__ == "lecture":
-    os.environ['JAVAHOME'] = r"C:\Program Files (x86)\Java\jre1.8.0_251\bin\java.exe"
+    os.environ['JAVAHOME'] = r"C:\Program Files (x86)\Java\jre1.8.0_261\bin\java.exe"
