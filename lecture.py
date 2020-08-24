@@ -5,7 +5,10 @@ from scipy.sparse import csr_matrix
 import pandas as pd
 from nltk.tag import StanfordPOSTagger
 from nltk.tokenize import RegexpTokenizer
-import keras as k
+from keras import Input
+from keras.layers import Bidirectional, LSTM, Dropout, RepeatVector, Concatenate, Dense, Activation, Dot, GRU
+from keras.models import Model
+from keras.optimizers import Adam
 from sklearn.model_selection import train_test_split
 
 
@@ -82,43 +85,42 @@ def train_dev(df, test_size=0.01, m=1000, forced_train=None, mots="1_ortho", pho
 
 
 def model_test(tx, ty, n_l, n_p, n_brnn1=32, n_h1=64):
-    x = k.Input(shape=(tx, n_l))
-    c0 = k.Input(shape=(n_h1,), name='c0')
-    h0 = k.Input(shape=(n_h1,), name='h0')
+    x = Input(shape=(tx, n_l))
+    c0 = Input(shape=(n_h1,), name='c0')
+    h0 = Input(shape=(n_h1,), name='h0')
     c = c0
     h = h0
     outputs = list()  # initialisation de la derniere couche
 
     # c'est parti
-    a = k.layers.Bidirectional(k.layers.LSTM(units=n_brnn1, return_sequences=True, name="LSTM_mot"))(x)
-    a = k.layers.Dropout(0.2, name="dropout_LSTM_orthographe")(a)
+    a = Bidirectional(LSTM(units=n_brnn1, return_sequences=True, name="LSTM_mot"))(x)
+    a = Dropout(0.2, name="dropout_LSTM_orthographe")(a)
     for t in range(ty):
         # Attention
-        h_rep = k.layers.RepeatVector(tx, name="att_repeat_phoneme{}".format(t))(h)
-        ah = k.layers.Concatenate(axis=-1, name="att_concat_phoneme{}".format(t))([h_rep, a])
-        energies = k.layers.Dense(units=n_h1, activation="tanh", name="att_caractere_phoneme{}".format(t))(ah)
-        energies = k.layers.Dense(units=1, activation="relu", name="att_moyenne_phoneme{}".format(t))(energies)
-        alpha = k.layers.Activation("softmax", name="att_alpha_phoneme{}".format(t))(energies)
-        context = k.layers.Dot(axes=1, name="att_application_phoneme{}".format(t))([alpha, a])
+        h_rep = RepeatVector(tx, name="att_repeat_phoneme{}".format(t))(h)
+        ah = Concatenate(axis=-1, name="att_concat_phoneme{}".format(t))([h_rep, a])
+        energies = Dense(units=n_h1, activation="tanh", name="att_caractere_phoneme{}".format(t))(ah)
+        energies = Dense(units=1, activation="relu", name="att_moyenne_phoneme{}".format(t))(energies)
+        alpha = Activation("softmax", name="att_alpha_phoneme{}".format(t))(energies)
+        context = Dot(axes=1, name="att_application_phoneme{}".format(t))([alpha, a])
 
-        h, c = k.layers.GRU(units=n_h1, activation='tanh', recurrent_activation='tanh', return_state=True,
-                            name="LSTM_phoneme{}".format(t))(inputs=context, initial_state=c)
-        h = k.layers.Dropout(rate=0.1, name="dropout_phoneme{}".format(t))(h)
-        c = k.layers.Dropout(rate=0.1, name="dropout_memory_phoneme{}".format(t))(c)
-        outy = k.layers.Dense(activation="softmax",
-                              units=n_p, name="LSTM_{}".format(t))(h)
+        h, c = GRU(units=n_h1, activation='tanh', recurrent_activation='tanh', return_state=True,
+                   name="LSTM_phoneme{}".format(t))(inputs=context, initial_state=c)
+        h = Dropout(rate=0.1, name="dropout_phoneme{}".format(t))(h)
+        c = Dropout(rate=0.1, name="dropout_memory_phoneme{}".format(t))(c)
+        outy = Dense(activation="softmax", units=n_p, name="LSTM_{}".format(t))(h)
         outputs.append(outy)
-    net = k.models.Model(inputs=[x, c0, h0], outputs=outputs)
+    net = Model(inputs=[x, c0, h0], outputs=outputs)
     return net
 
 
 def pos_tag(mots,
-            jar=r"C:\Users\remif\PythonRequired\stanford-postagger-full-2017-06-09\stanford-postagger-3.8.0.jar",
-            mdl=r"C:\Users\remif\PythonRequired\stanford-postagger-full-2017-06-09\models\french-ud.tagger"):
+            jar=os.path.join(".", "models", "stanford-postagger", "stanford-postagger-3.8.0.jar"),
+            mdl=os.path.join(".", "models", "stanford-postagger", "french-ud.tagger")):
     try:
         pos_tagger = StanfordPOSTagger(mdl, jar, encoding='utf8')
     except LookupError:
-        java_path = r"C:\Program Files (x86)\Java\jre1.8.0_251\bin\java.exe"
+        java_path = r"C:\Program Files (x86)\Java\jre1.8.0_261\bin\java.exe"
         os.environ['JAVAHOME'] = java_path
         pos_tagger = StanfordPOSTagger(mdl, jar, encoding='utf8')
     tagged = pos_tagger.tag(mots)
@@ -318,38 +320,37 @@ class Lecteur:
     def model(self):
         n_l = len(self.l2idx)
         n_p = len(self.p2idx)
-        x = k.Input(shape=(self.tx, n_l), name="mot")
-        c0 = k.Input(shape=(self.n_h1,), name='c0')
+        x = Input(shape=(self.tx, n_l), name="mot")
+        c0 = Input(shape=(self.n_h1,), name='c0')
         c = c0
-        h0 = k.Input(shape=(self.n_h1,), name='h0')
+        h0 = Input(shape=(self.n_h1,), name='h0')
         h = h0
         outputs = list()  # initialisation de la derniere couche
 
         # c'est parti
-        a = k.layers.Bidirectional(k.layers.LSTM(units=self.n_brnn1, return_sequences=True, name="LSTM_orthographe"))(x)
-        a = k.layers.Dropout(0.2, name="dropout_LSTM_orthographe")(a)
+        a = Bidirectional(LSTM(units=self.n_brnn1, return_sequences=True, name="LSTM_orthographe"))(x)
+        a = Dropout(0.2, name="dropout_LSTM_orthographe")(a)
         for t in range(self.ty):
             # Attention
-            h_rep = k.layers.RepeatVector(self.tx, name="att_repeat_phoneme{}".format(t))(h)
-            ah = k.layers.Concatenate(axis=-1, name="att_concat_phoneme{}".format(t))([h_rep, a])
-            energies = k.layers.Dense(units=self.n_h1, activation="tanh", name="att_caractere_phoneme{}".format(t))(ah)
-            energies = k.layers.Dense(units=1, activation="relu", name="att_moyenne_phoneme{}".format(t))(energies)
-            alpha = k.layers.Activation("softmax", name="att_alpha_phoneme{}".format(t))(energies)
-            context = k.layers.Dot(axes=1, name="att_application_phoneme{}".format(t))([alpha, a])
+            h_rep = RepeatVector(self.tx, name="att_repeat_phoneme{}".format(t))(h)
+            ah = Concatenate(axis=-1, name="att_concat_phoneme{}".format(t))([h_rep, a])
+            energies = Dense(units=self.n_h1, activation="tanh", name="att_caractere_phoneme{}".format(t))(ah)
+            energies = Dense(units=1, activation="relu", name="att_moyenne_phoneme{}".format(t))(energies)
+            alpha = Activation("softmax", name="att_alpha_phoneme{}".format(t))(energies)
+            context = Dot(axes=1, name="att_application_phoneme{}".format(t))([alpha, a])
 
-            h, c = k.layers.GRU(units=self.n_h1, activation='tanh', recurrent_activation='sigmoid', return_state=True,
-                                name="GRU_phoneme{}".format(t))(inputs=context, initial_state=c)
+            h, c = GRU(units=self.n_h1, activation='tanh', recurrent_activation='sigmoid', return_state=True,
+                       name="GRU_phoneme{}".format(t))(inputs=context, initial_state=c)
 
-            h = k.layers.Dropout(rate=0.1, name="dropout_phoneme{}".format(t))(h)
-            c = k.layers.Dropout(rate=0.1, name="dropout_memory_phoneme{}".format(t))(c)
+            h = Dropout(rate=0.1, name="dropout_phoneme{}".format(t))(h)
+            c = Dropout(rate=0.1, name="dropout_memory_phoneme{}".format(t))(c)
 
-            outy = k.layers.Dense(activation="softmax",
-                                  units=n_p, name="softmax_phoneme_{}".format(t))(h)
+            outy = Dense(activation="softmax", units=n_p, name="softmax_phoneme_{}".format(t))(h)
             outputs.append(outy)
-        net = k.models.Model(inputs=[x, c0, h0], outputs=outputs)
+        net = Model(inputs=[x, c0, h0], outputs=outputs)
         return net
 
-    def compile_train(self, x, y, epochs=10, batch_size=64, opt=k.optimizers.Adam()):
+    def compile_train(self, x, y, epochs=10, batch_size=64, opt=Adam()):
         m = x.shape[0]
         if self.net is None:
             self.net = self.model()
@@ -553,7 +554,9 @@ class Lecteur:
         tokens = self.tokenizer(vers)
         pos = pos_tag(tokens)
         mots_lus = self.lire_mots(tokens)
+        print(mots_lus)
         mots_lus_avec_e = e_final_tokens(tokens, mots_lus)
+        print(mots_lus_avec_e)
         mots_lus_liaisons = liaisons_tokens(tokens, mots_lus_avec_e, pos, vers)
         vers_lu = "".join(mots_lus_liaisons)
         return vers_lu
