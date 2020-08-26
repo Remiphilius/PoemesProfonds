@@ -1,13 +1,18 @@
----
-output:
-  html_document: default
-  pdf_document: default
----
 # PoemesProfonds
 
-## Converter text to phenomes
+## Requirements
 
-In order to get the phonemes of the verses from the poetry, a model converting word to phonemes in French was developped, especially for proper nouns. The data to train the model on was found in [1]. Instead of using the International Phonetic Alphabet (IPA), the same substitution alphabet is used as in [1] as described below. 
+- Python >= 3.5
+- Tensorflow 2
+- Keras >= 2.3.1
+- Java 1.8
+
+
+## Text-to-phenomes converter
+
+In order to get the phonemes of the verses from the poetry, a text-to-phonemes converter for French need to be developped. Some words, especially proper nounds, may appear in poetry but are not in any database containg the phenotic of these novel words. Thus, a model based on neural networks was created so converter can read every word.
+
+The data to train the model on was found in [1]. Instead of using the International Phonetic Alphabet (IPA), the same substitution alphabet is used as in [1] as described below. 
 
 ### Consonants
 
@@ -61,18 +66,39 @@ Method **lire_mots** uses words POS and the dictionnaries *dico_u* and *dico_m* 
 ['S°val', 'abistuk']
 ```
 
-As this text-to-phonemes converter was developped to read French poetry, the phoneme /&#601;/ is added when a word ends with a consonant sound followed by a mute "e" (except at the end of a verse). This was added thanks to the functions *e_final* and *e_final_tokens* used in the method *lire_vers*. Theses /&#601;/ are nor present in the dictionnaries *dico_u* and *dico_m* neither in the model.
+As this text-to-phonemes converter was developped to read French poetry, the phoneme /&#601;/ is added when a word ends with a consonant sound followed by a mute *e* (except at the end of a verse). This was added thanks to the functions *e_final* and *e_final_tokens* used in the method *lire_vers*. Theses /&#601;/ are nor present in the dictionnaries *dico_u* and *dico_m* neither in the model.
 
-Method **lire_vers** also features the [French *liaisons*](https://en.wikipedia.org/wiki/Liaison_(French)). The POS is considered while applying the *liaison* or not. Numbers can also be read.
+Method **lire_vers** also features the [French *liaisons*](https://en.wikipedia.org/wiki/Liaison_(French)). The POS is considered while applying the *liaison* or not. For instance, with *les enfants ouvrent* there is no *liaison* between *enfants* (noun) and *ouvrent* (verb). The POS-tagger used is *StanfordPOSTagger*. Because of it, only a single sentence shoud be input in the method.
+
+Numbers can also be read thanks to a script broadly inspired by [3].
 
 ```python
->>> lecteur.lire_vers("Les trains arrivent en gare de Jarlitude sur les voies 14 et 97.")
-'letR5aRiv°t@gaR°d°ZaRlityd°syRlevwakatORzekatR°v5disEt'
+>>> lecteur.lire_vers("Les trains arrivent en gare de Jarlitude voies 14 et 97.")
+'letR5aRiv°t@gaR°d°ZaRlityd°vwakatORzekatR°v5disEt'
 ```
+## Best sequence of verses
+
+This project was inspired by [4]. The aim of this project is to get a realistic sequence of verses from a neural network. This models look at a set of previous verses to get the most likely verse to continue this sequence. Some verses are candidates to be chosen as the best sequel. The model predicts a score for each candidates. Here, it is the probability of the verse to be the sequel.
+
+Unlike in [4], the neural network reckons a verse as a couple of its phonemes (got thanks to the text-to-phonemes converter) and its FastText representation. FastText [5] is a word embedding representation which can derive a unique vector for a sentence. It also considers the punctuation and it is case-sensitive.
+
+Two parameters are important for the quality of the poem generated and the speed of execution:
+
+- **test_size**
+- **k**
+
 
 ## References
 [1] [New, Boris, Christophe Pallier, Ludovic Ferrand, and Rafael Matos. 2001. "Une Base de Données Lexicales Du Français Contemporain Sur Internet: LEXIQUE" L'Année Psychologique 101 (3): 447-462](https://chrplr.github.io/openlexicon/datasets-info/Lexique382/New%20et%20al.%20-%202001%20-%20Une%20base%20de%20donn%C3%A9es%20lexicales%20du%20fran%C3%A7ais%20contempo.pdf)
 
-[2] [Vaswani, A., et al.: Attention is all you need. arXiv (2017). arXiv:1706.03762](https://arxiv.org/abs/1706.03762)
+[2] [Vaswani, A., et al.: Attention is all you need. arXiv (2017). arXiv:1706.03762](https://arxiv.org/pdf/1706.03762.pdf)
+
+[3] [Michel Claveau. 2004. "Traduction nombre => texte" from mclaveau.com](http://mclaveau.com/ress/python/trad.py)
+
+[4] [E Malmi, P Takala, H Toivonen, T Raiko, A. Gionis. 2016. DopeLearning: A Computational Approach to Rap Lyrics Generation. arXiv preprint arXiv:1505.04771](https://arxiv.org/pdf/1505.04771.pdf)
+
+[5] [Tomas Mikolov, Edouard Grave, Piotr Bojanowski, Christian Puhrsch, and Armand Joulin.   Advances in pre-training distributed word representations.  InProceedings of the Eleventh International Conference on LanguageResources and Evaluation (LREC-2018), 2018.](https://arxiv.org/pdf/1712.09405.pdf)
+
+[6] [Jason Brownlee. January 5 2018. "How to Implement a Beam Search Decoder for Natural Language Processing" from machinelearningmastery.com](https://machinelearningmastery.com/beam-search-decoder-natural-language-processing/)
 
 ## License
