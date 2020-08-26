@@ -217,15 +217,22 @@ def liaison(ortho1, ortho2, phon1, phon2, nat1, nat2, phrase, **kwargs):
     return phon1
 
 
-def e_final(mot, prononciation1, prononciation2):
-    e_potentiel = (mot[-1] == 'e') or (mot[-2:] == 'es') or (mot[-3:] == 'ent')
-    son_final = prononciation1[-1]
-    son_initial = prononciation2[0]
+def e_final(ortho1, ortho2, phon1, phon2, nat1, nat2, phrase, **kwargs):
+    e_potentiel = (ortho1[-1] == 'e') or (ortho1[-2:] == 'es') or (ortho1[-3:] == 'ent')
+    son_final = phon1[-1]
+    son_initial = phon2[0]
+    lettre_initiale = ortho2[0]
     consonnes_p = ['k', 'p', 'l', 't', 'R', 'j', 'f', 's', 'd', 'Z', 'n', 'b', 'v', 'g',
                    'v', 'g', 'm', 'z', 'w', 'S', 'N', '8', 'G', 'x']
-    if e_potentiel and (son_final in consonnes_p) and (son_initial in consonnes_p):
-        prononciation1 = "{}°".format(prononciation1)
-    return prononciation1
+    lien_mots = (son_final in consonnes_p) and ((son_initial in consonnes_p) or lettre_initiale == 'h')
+    if e_potentiel and lien_mots:
+        phon1 = "{}°".format(phon1)
+    elif e_potentiel and (son_final in consonnes_p):  # "e" et liaison quand le 2e mot commence par une voyelle
+        phon1_e = "{}°".format(phon1)
+        phon1_e_liaison = liaison(ortho1, ortho2, phon1_e, phon2, nat1, nat2, phrase, **kwargs)
+        if phon1_e != phon1_e_liaison:
+            phon1 = phon1_e_liaison
+    return phon1
 
 
 def liaisons_tokens(mots, prononciation, pos_mots, phrase):
@@ -236,10 +243,11 @@ def liaisons_tokens(mots, prononciation, pos_mots, phrase):
     return prononciation
 
 
-def e_final_tokens(mots, prononciation):
+def e_final_tokens(mots, prononciation, pos_mots, phrase):
     n = len(prononciation)
     for i in range(n - 1):
-        prononciation[i] = e_final(mots[i], prononciation[i], prononciation[i+1])
+        prononciation[i] = e_final(mots[i], mots[i + 1], prononciation[i], prononciation[i + 1],
+                                   pos_mots[i][1], pos_mots[i + 1][1], phrase)
     return prononciation
 
 
@@ -554,9 +562,7 @@ class Lecteur:
         tokens = self.tokenizer(vers)
         pos = pos_tag(tokens)
         mots_lus = self.lire_mots(tokens)
-        print(mots_lus)
-        mots_lus_avec_e = e_final_tokens(tokens, mots_lus)
-        print(mots_lus_avec_e)
+        mots_lus_avec_e = e_final_tokens(tokens, mots_lus, pos, vers)
         mots_lus_liaisons = liaisons_tokens(tokens, mots_lus_avec_e, pos, vers)
         vers_lu = "".join(mots_lus_liaisons)
         return vers_lu
@@ -613,7 +619,8 @@ class Lecteur:
                     j += 1
             for idx in range(len(strophe_phonemes_tokens)):
                 if len(strophe_phonemes_tokens[idx]) > 1:
-                    strophe_phonemes_tokens[idx] = e_final_tokens(strophe[idx], strophe_phonemes_tokens[idx])
+                    strophe_phonemes_tokens[idx] = e_final_tokens(strophe[idx], strophe_phonemes_tokens[idx],
+                                                                  pos_strophe[idx], strophe_text[idx])
                     strophe_phonemes_tokens[idx] = liaisons_tokens(strophe[idx],
                                                                    strophe_phonemes_tokens[idx], pos_strophe[idx],
                                                                    strophe_text[idx])
