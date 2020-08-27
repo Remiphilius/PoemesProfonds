@@ -143,7 +143,7 @@ def pieds(vers):
 
 
 class Chercheur2Vers:
-    def __init__(self, t_p, p2idx, dim_words=300, n_antecedant_vers=4, blank="_", net=None, var_id="id",
+    def __init__(self, t_p, p2idx, dim_words=300, n_antecedant_vers=8, blank="_", net=None, var_id="id",
                  var_phonemes="phonemes", var_vects="vect", var_vers="vers"):
         self.t_p = t_p
         self.p2idx = p2idx
@@ -305,23 +305,23 @@ class Chercheur2Vers:
             if labeliser:
                 labels.append(self.labelizer(elements_idx))
         if labeliser:
+            labels = np.array(labels)
             return mat_phon, mat_vect, labels
         else:
             return mat_phon, mat_vect
 
-    def model(self, n_emb=300, n_rnn=420, n_dense_particulier=50, n_dense_particulier2=30, n_dense1=25):
+    def model(self, n_rnnphonvers=300, n_rnn_phon15=420, n_dense_particulier=50, n_dense_particulier2=30, n_dense1=25):
         # phonemes
         n_p = len(self.p2idx)
         phonemes_in = Input(shape=(self.n_antecedant_vers + 1, self.t_p + 1, n_p), name="phonemes_input")
 
-        rnn_phon = GRU(units=n_emb, activation="tanh", name="embedding_phonemes")
+        rnn_phon = GRU(units=n_rnnphonvers, activation="tanh", name="embedding_phonemes")
 
         phonems_v15 = TimeDistributed(rnn_phon, name="RNN_phonemes_vers_unique")(phonemes_in)
-        phonems_v14 = Lambda(lambda x: x[:, :-1, :], output_shape=(self.n_antecedant_vers, n_emb),
-                             name="phonemes_v")(phonems_v15)
-        phonems_cible = Lambda(lambda x: x[:, -1, :], output_shape=(n_emb,), name="phonemes_cible")(phonems_v15)
+        phonems_v14 = Lambda(lambda x: x[:, :-1, :], output_shape=(8, n_rnnphonvers), name="phonemes_v")(phonems_v15)
+        phonems_cible = Lambda(lambda x: x[:, -1, :], output_shape=(n_rnnphonvers,), name="phonemes_cible")(phonems_v15)
 
-        rnn_phon_vers = LSTM(units=n_rnn, activation="tanh", name="RNN_phonemes_total")(phonems_v14)
+        rnn_phon_vers = LSTM(units=n_rnn_phon15, activation="tanh", name="RNN_phonemes_total")(phonems_v14)
 
         phonemes_tout = Concatenate(axis=1, name="concat_phonemes")([rnn_phon_vers, phonems_cible])
         phonemes_tout = Dense(units=n_dense_particulier, name="dense_phonemes")(phonemes_tout)
@@ -337,17 +337,16 @@ class Chercheur2Vers:
         words_in = Input(shape=(self.n_antecedant_vers + 1, self.dim_words), name="words_input")
 
         emb_reduc = Sequential(name="dim_reduction")
-        emb_reduc.add(Dense(units=n_emb, activation="tanh"))
+        emb_reduc.add(Dense(units=n_rnnphonvers, activation="tanh"))
         emb_reduc.add(Lambda(lambda t: K.l2_normalize(1000*t, axis=1)))
         emb_reduc.add(Dropout(rate=0.1))
         emb_reduc.add(BatchNormalization())
 
         words_v15 = TimeDistributed(emb_reduc)(words_in)
-        words_v14 = Lambda(lambda x: x[:, :-1, :], output_shape=(self.n_antecedant_vers, n_emb),
-                           name="words_v")(words_v15)
-        wordscible = Lambda(lambda x: x[:, -1, :], output_shape=(n_emb,), name="wordscible")(words_v15)
+        words_v14 = Lambda(lambda x: x[:, :-1, :], output_shape=(8, n_rnnphonvers), name="words_v")(words_v15)
+        wordscible = Lambda(lambda x: x[:, -1, :], output_shape=(n_rnnphonvers,), name="wordscible")(words_v15)
 
-        rnn_words = GRU(units=n_rnn, activation="tanh", name="RNN_words")(words_v14)
+        rnn_words = GRU(units=n_rnn_phon15, activation="tanh", name="RNN_words")(words_v14)
 
         words_tout = Concatenate(axis=1, name="concat_words")([rnn_words, wordscible])
         words_tout = Dense(units=n_dense_particulier, name="dense_words")(words_tout)
@@ -360,18 +359,15 @@ class Chercheur2Vers:
         words_tout2 = BatchNormalization(name="batchnorm_words2")(words_tout2)
 
         # rassemblement
-        tout = Concatenate(axis=1, name="concat_tout")([phonemes_tout2, words_tout2])
+        tout = Concatenate(axis=1, name="concat_tout")((phonemes_tout2, words_tout2))
         dense1 = Dense(units=n_dense1, name="dense_tout1")(tout)
         dense1 = LeakyReLU(0.2, name="activation_dense_tout1")(dense1)
-        dense1 = Dropout(rate=0.1, name="dropout_dense1")(dense1)
+        dense1 = Dropout(rate=0.1, name="dropout_tout1")(dense1)
         dense1 = BatchNormalization(name="batchnorm_tout1")(dense1)
-        # dense2 = Dense(units=n_dense2, name="dense_tout2")(dense1)
-        # dense2 = LeakyReLU(0.2, name="activation_dense_tout2")(dense2)
-        # dense2 = Dropout(rate=0.1, name="dropout_dense2")(dense2)
-        # dense2 = BatchNormalization(name="batchnorm_tout2")(dense2)
         proba = Dense(units=1, activation="sigmoid", name="probability")(dense1)
 
         net = Model(inputs=[phonemes_in, words_in], outputs=proba)
+        net.summary()
         return net
 
     def compile_train(self, mat_p, mat_v, labels, opt, epochs=10, batch_size=64):

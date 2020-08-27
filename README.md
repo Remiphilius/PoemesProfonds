@@ -73,14 +73,23 @@ Method **lire_vers** also features the [French *liaisons*](https://en.wikipedia.
 Numbers can also be read thanks to a script broadly inspired by [3].
 
 ```python
->>> lecteur.lire_vers("Les trains arrivent en gare de Jarlitude voies 14 et 97.")
+>>> lecteur.lire_vers("Les trains arrivent en gare de Jarlitude, voies 14 et 97.")
 'letR5aRiv°t@gaR°d°ZaRlityd°vwakatORzekatR°v5disEt'
 ```
 ## Best sequence of verses
 
 This project was inspired by [4]. The aim of this project is to get a realistic sequence of verses from a neural network. This models look at a set of previous verses to get the most likely verse to continue this sequence. Some verses are candidates to be chosen as the best sequel. The model predicts a score for each candidates. Here, it is the probability of the verse to be the sequel.
 
-Unlike in [4], the neural network reckons a verse as a couple of its phonemes (got thanks to the text-to-phonemes converter) and its FastText representation. FastText [5] is a word embedding representation which can derive a unique vector for a sentence. It also considers the punctuation and it is case-sensitive.
+Unlike in [4], the neural network reckons a verse as a couple of its phonemes (got thanks to the text-to-phonemes converter) and its FastText representation. FastText [5] is a word embedding representation which can derive a unique vector for a sentence. It also considers the punctuation and it is case-sensitive. This allows the model to make more realistic predictions as it considers these elements.
+
+| vers | phonemes | id | vect |
+|------|----------|----|------|
+| Que les parfums légers de ton air embaumé, | k°lepaRf1leZed°t§nER@bome | 23 | (0.001, ..., 0.03) |
+| Que tout ce qu'on entend, l'on voit ou l'on respire, | k°tus2k§n@t@l§vwatul§REspiR | 23 | (0.2, ..., 0.004) |
+| Tout dise : Ils ont aimé ! | tudizilz§teme | 23 | (0.052, ..., 0.14) |
+| Comme je descendais des Fleuves impassibles, | kOm°Z°des@dEdefl9vz5pasibl | 55 | (0.092, ..., 0.74) |
+| Je ne me sentis plus guidé par les haleurs : | Z°n°m°s@tiplygidepaRleal9R |55 | (0.00001, ..., 0.0002) |
+| Des Peaux-Rouges criards les avaient pris pour cibles | depoRuZ°kRijaRleavEpRipuRsibl | 55 | (0.096, ..., 0.0032) |
 
 Two parameters are important for the quality of the poem generated and the speed of execution:
 
