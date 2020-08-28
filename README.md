@@ -82,14 +82,31 @@ This project was inspired by [4]. The aim of this project is to get a realistic 
 
 Unlike in [4], the neural network reckons a verse as a couple of its phonemes (got thanks to the text-to-phonemes converter) and its FastText representation. FastText [5] is a word embedding representation which can derive a unique vector for a sentence. It also considers the punctuation and it is case-sensitive. This allows the model to make more realistic predictions as it considers these elements.
 
-| vers | phonemes | id | vect |
-|------|----------|----|------|
+### Data
+
+As the neural network creates a sequences of verses, theses verses need to be stored in a data frame. Each observation is a verse. For the training, the verses should be ordered in the data frame. The verse line $i$ is in its original poem right before the verse line $i + 1$ and right after the one line $i - 1$.
+
+The data frame needs at least these four variables (their names can be changed while creating an instance of *Chercheur2Vers*):
+
+- vers: raw text of the verse
+- phonemes: phonemes of the verse
+- id: identifying number of the poeme from which the verse is from. (Only needed for training)
+- vect: FastText representation of the verse. The models are built to use 300-dimension vectors.
+
+This is an example of the data:
+
+| vers                           | phonemes          | id | vect     |
+|--------------------------------|-------------------|----|----------|
 | Que les parfums légers de ton air embaumé, | k°lepaRf1leZed°t§nER@bome | 23 | (0.001, ..., 0.03) |
 | Que tout ce qu'on entend, l'on voit ou l'on respire, | k°tus2k§n@t@l§vwatul§REspiR | 23 | (0.2, ..., 0.004) |
 | Tout dise : Ils ont aimé ! | tudizilz§teme | 23 | (0.052, ..., 0.14) |
 | Comme je descendais des Fleuves impassibles, | kOm°Z°des@dEdefl9vz5pasibl | 55 | (0.092, ..., 0.74) |
-| Je ne me sentis plus guidé par les haleurs : | Z°n°m°s@tiplygidepaRleal9R |55 | (0.00001, ..., 0.0002) |
+| Je ne me sentis plus guidé par les haleurs : | Z°n°m°s@tiplygidepaRleal9R |55 | (0.0001, ..., 0.02) |
 | Des Peaux-Rouges criards les avaient pris pour cibles | depoRuZ°kRijaRleavEpRipuRsibl | 55 | (0.096, ..., 0.0032) |
+
+### Neural network
+
+![Architecture](2nde8.png)
 
 Two parameters are important for the quality of the poem generated and the speed of execution:
 
