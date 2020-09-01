@@ -84,7 +84,7 @@ Unlike in [4], the neural network reckons a verse as a couple of its phonemes (g
 
 ### Data
 
-As the neural network creates a sequences of verses, theses verses need to be stored in a data frame. Each observation is a verse. For the training, the verses should be ordered in the data frame. The verse line $i$ is in its original poem right before the verse line $i + 1$ and right after the one line $i - 1$.
+As the neural network creates a sequences of verses, theses verses need to be stored in a data frame. Each observation is a verse. For the training, the verses should be ordered in the data frame. The verse line <img src="https://render.githubusercontent.com/render/math?math=i"> is in its original poem right before the verse line <img src="https://render.githubusercontent.com/render/math?math=i + 1"> and right after the one line <img src="https://render.githubusercontent.com/render/math?math=i - 1">.
 
 The data frame needs at least these four variables (their names can be changed while creating an instance of *Chercheur2Vers*):
 
@@ -106,20 +106,20 @@ This is an example of the data:
 
 ### Neural network
 
-The aim of the neural network is to compute, for a set of $s$ verses, the probability that a verse is the real one following this set.
+The aim of the neural network is to compute, for a set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses, the probability that a verse is the real one following this set.
 
 #### Inputs
 
 These verses are modeled by two different matrixes:
 
-- $P$: one hot encoding representation of the phonemes of the verses. Its shape is $\left(s + 1, l, n_p + 1 \right)$. $l$ is the size of the longest string of phonemes among the data. $n_p$ is the number of characters of the phonemes alphabet. One is added to $s$ as the matrix holds the representations of the $s$ verses of the set and the one of the verse for which we want to compute the probability. One is also added to $n_p$ as there is a symbol for a blank.
-- $V$: stack of FastText representations of the verses. Its shape is $\left(s + 1, d \right)$ with $d$ the dimension of the FastText vectors.
+- <img src="https://render.githubusercontent.com/render/math?math=P">: one hot encoding representation of the phonemes of the verses. Its shape is <img src="https://render.githubusercontent.com/render/math?math=\left(s + 1, l, n_p + 1 \right)">. <img src="https://render.githubusercontent.com/render/math?math=l"> is the size of the longest string of phonemes among the data. <img src="https://render.githubusercontent.com/render/math?math=n_p"> is the number of characters of the phonemes alphabet. One is added to <img src="https://render.githubusercontent.com/render/math?math=s"> as the matrix holds the representations of the <img src="https://render.githubusercontent.com/render/math?math=s"> verses of the set and the one of the verse for which we want to compute the probability. One is also added to <img src="https://render.githubusercontent.com/render/math?math=n_p"> as there is a symbol for a blank.
+- <img src="https://render.githubusercontent.com/render/math?math=V">: stack of FastText representations of the verses. Its shape is <img src="https://render.githubusercontent.com/render/math?math=\left(s + 1, d \right)"> with <img src="https://render.githubusercontent.com/render/math?math=d"> the dimension of the FastText vectors.
 
 #### Phonemes
 
-A gated recurrent unit (GRU) layer is used to compute an embedding for each verse's phonemes. This type of layer was chosen because it considers a the order of the phonemes to creat the embedding. The layer turns every of the $s + 1$ rows of the matrix $P$ from a $\left(l, n_p + 1\right)$-shaped matrix to a vector of dimension $n_e$. This layer creates a $\left(s + 1, n_e\right)$-shaped matrix. The last row is extracted from this matrix. So that a new $\left(s, n_e\right)$-shaped matrix $P_e$, representing the set of $s$ verses, and a $n_e$-dimension vector, reprensenting the candidate verse, are created.
+A gated recurrent unit (GRU) layer is used to compute an embedding for each verse's phonemes. This type of layer was chosen because it considers a the order of the phonemes to creat the embedding. The layer turns every of the <img src="https://render.githubusercontent.com/render/math?math=s + 1"> rows of the matrix <img src="https://render.githubusercontent.com/render/math?math=P"> from a <img src="https://render.githubusercontent.com/render/math?math=\left(l, n_p + 1\right)">-shaped matrix to a vector of dimension <img src="https://render.githubusercontent.com/render/math?math=n_e">. This layer creates a <img src="https://render.githubusercontent.com/render/math?math=\left(s + 1, n_e\right)">-shaped matrix. The last row is extracted from this matrix. So that a new <img src="https://render.githubusercontent.com/render/math?math=\left(s, n_e\right)">-shaped matrix <img src="https://render.githubusercontent.com/render/math?math=P_e">, representing the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses, and a <img src="https://render.githubusercontent.com/render/math?math=n_e">-dimension vector, reprensenting the candidate verse, are created.
 
-A long short term memory (LSTM) layer is applied on the matrix $P_e$.
+A long short term memory (LSTM) layer is applied on the matrix <img src="https://render.githubusercontent.com/render/math?math=P_e">.
 
 ![](archi.png)
 
