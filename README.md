@@ -10,7 +10,7 @@
 
 ## Text-to-phenomes converter
 
-In order to get the phonemes of the verses from the poetry, a text-to-phonemes converter for French need to be developped. Some words, especially proper nounds, may appear in poetry but are not in any database containg the phenotic of these novel words. Thus, a model based on neural networks was created so converter can read every word.
+In order to get the phonemes of the verses from the poetry, a text-to-phonemes converter for French need to be developped. Some words, especially proper nounds, may appear in poetry but are not in any database containg the phenotic of these novel words. Thus, a model based on neural networks was created so converter can read every word. This algorithm can also be used to generate songs lyrics.
 
 The data to train the model on was found in [1]. Instead of using the International Phonetic Alphabet (IPA), the same substitution alphabet is used as in [1] as described below. 
 
@@ -27,7 +27,7 @@ The data to train the model on was found in [1]. Instead of using the Internatio
 
 The model can take as input a word up to 25 lettres long and return a phonetic transcription up to 21 phonemes long.
 
-The architecture of the model features an attention mechanism as seen in [2].
+The architecture of the model features an attention mechanism [2].
 
 The model has a **99.76% accuracy** on words it was not trained on which seem to be the best (as of August 2020) in French.
 
@@ -68,7 +68,7 @@ Method **lire_mots** uses words POS and the dictionnaries *dico_u* and *dico_m* 
 
 As this text-to-phonemes converter was developped to read French poetry, the phoneme /&#601;/ is added when a word ends with a consonant sound followed by a mute *e* (except at the end of a verse). This was added thanks to the functions *e_final* and *e_final_tokens* used in the method *lire_vers*. Theses /&#601;/ are nor present in the dictionnaries *dico_u* and *dico_m* neither in the model.
 
-Method **lire_vers** also features the [French *liaisons*](https://en.wikipedia.org/wiki/Liaison_(French)). The POS is considered while applying the *liaison* or not. For instance, with *les enfants ouvrent* there is no *liaison* between *enfants* (noun) and *ouvrent* (verb). The POS-tagger used is *StanfordPOSTagger*. Because of it, only a single sentence shoud be input in the method.
+Method **lire_vers** also features the [French *liaisons*](https://en.wikipedia.org/wiki/Liaison_(French)). The POS is considered while applying the *liaison* or not. For instance, with *les enfants ouvrent* there is no *liaison* between *enfants* (noun) and *ouvrent* (verb). The POS-tagger used is [*StanfordPOSTagger*](https://nlp.stanford.edu/software/tagger.shtml) [6]. Because of it, only a single sentence shoud be input in the method.
 
 Numbers can also be read thanks to a script broadly inspired by [3].
 
@@ -95,18 +95,33 @@ The data frame needs at least these four variables (their names can be changed w
 
 This is an example of the data:
 
-| vers                           | phonemes          | id | vect     |
-|--------------------------------|-------------------|----|----------|
+| vers                           | phonemes          | id | vect      |
+|--------------------------------|-------------------|----|-----------|
 | Que les parfums légers de ton air embaumé, | k°lepaRf1leZed°t§nER@bome | 23 | (0.001, ..., 0.03) |
 | Que tout ce qu'on entend, l'on voit ou l'on respire, | k°tus2k§n@t@l§vwatul§REspiR | 23 | (0.2, ..., 0.004) |
 | Tout dise : Ils ont aimé ! | tudizilz§teme | 23 | (0.052, ..., 0.14) |
 | Comme je descendais des Fleuves impassibles, | kOm°Z°des@dEdefl9vz5pasibl | 55 | (0.092, ..., 0.74) |
 | Je ne me sentis plus guidé par les haleurs : | Z°n°m°s@tiplygidepaRleal9R |55 | (0.0001, ..., 0.02) |
-| Des Peaux-Rouges criards les avaient pris pour cibles | depoRuZ°kRijaRleavEpRipuRsibl | 55 | (0.096, ..., 0.0032) |
+| Des Peaux-Rouges criards les avaient pris pour cibles | depoRuZ°kRijaRleavEpRipuRsibl | 55 | (0.096, ..., 0.032) |
 
 ### Neural network
 
-![Architecture](2nde8.png)
+The aim of the neural network is to compute, for a set of $s$ verses, the probability that a verse is the real one following this set.
+
+#### Inputs
+
+These verses are modeled by two different matrixes:
+
+- $P$: one hot encoding representation of the phonemes of the verses. Its shape is $\left(s + 1, l, n_p + 1 \right)$. $l$ is the size of the longest string of phonemes among the data. $n_p$ is the number of characters of the phonemes alphabet. One is added to $s$ as the matrix holds the representations of the $s$ verses of the set and the one of the verse for which we want to compute the probability. One is also added to $n_p$ as there is a symbol for a blank.
+- $V$: stack of FastText representations of the verses. Its shape is $\left(s + 1, d \right)$ with $d$ the dimension of the FastText vectors.
+
+#### Phonemes
+
+A gated recurrent unit (GRU) layer is used to compute an embedding for each verse's phonemes. This type of layer was chosen because it considers a the order of the phonemes to creat the embedding. The layer turns every of the $s + 1$ rows of the matrix $P$ from a $\left(l, n_p + 1\right)$-shaped matrix to a vector of dimension $n_e$. This layer creates a $\left(s + 1, n_e\right)$-shaped matrix. The last row is extracted from this matrix. So that a new $\left(s, n_e\right)$-shaped matrix $P_e$, representing the set of $s$ verses, and a $n_e$-dimension vector, reprensenting the candidate verse, are created.
+
+A long short term memory (LSTM) layer is applied on the matrix $P_e$.
+
+![](archi.png)
 
 Two parameters are important for the quality of the poem generated and the speed of execution:
 
@@ -125,6 +140,8 @@ Two parameters are important for the quality of the poem generated and the speed
 
 [5] [Tomas Mikolov, Edouard Grave, Piotr Bojanowski, Christian Puhrsch, and Armand Joulin.   Advances in pre-training distributed word representations.  InProceedings of the Eleventh International Conference on LanguageResources and Evaluation (LREC-2018), 2018.](https://arxiv.org/pdf/1712.09405.pdf)
 
-[6] [Jason Brownlee. January 5 2018. "How to Implement a Beam Search Decoder for Natural Language Processing" from machinelearningmastery.com](https://machinelearningmastery.com/beam-search-decoder-natural-language-processing/)
+[6] [Kristina Toutanova, Dan Klein, Christopher Manning, and Yoram Singer. 2003. Feature-Rich Part-of-Speech Tagging with a Cyclic Dependency Network. In Proceedings of HLT-NAACL 2003, pp. 252-259.](https://nlp.stanford.edu/~manning/papers/tagging.pdf)
+
+[7] [Jason Brownlee. January 5 2018. "How to Implement a Beam Search Decoder for Natural Language Processing" from machinelearningmastery.com](https://machinelearningmastery.com/beam-search-decoder-natural-language-processing/)
 
 ## License
