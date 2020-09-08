@@ -104,6 +104,8 @@ This is an example of the data:
 | Je ne me sentis plus guidé par les haleurs : | Z°n°m°s@tiplygidepaRleal9R |55 | (0.0001, ..., 0.02) |
 | Des Peaux-Rouges criards les avaient pris pour cibles | depoRuZ°kRijaRleavEpRipuRsibl | 55 | (0.096, ..., 0.032) |
 
+In order to have a huge amount of verses, the idea was to get French classical plays. They were got from the website *Théâtre classique* [8] through XML files format.
+
 ### Neural network
 
 The aim of the neural network is to compute, for a set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses, the probability that a verse is the real one following this set.
@@ -125,7 +127,7 @@ A fully-connected layer with <img src="https://render.githubusercontent.com/rend
 
 #### FastText
 
-The only architectures producing realistic results, were the ones which were symetric. That is to say that for both the phonemes and the FastText representation sides, the output of each layer needs to be of the same size. Thus, each verse's FastText representation needs to be turned into a <img src="https://render.githubusercontent.com/render/math?math=n_e">-dimension vector. Therefore, the matrix <img src="https://render.githubusercontent.com/render/math?math=V"> is turned into a <img src="https://render.githubusercontent.com/render/math?math=(s %2B 1, n_e)"> shaped matrix called. A fully-connected layer with <img src="https://render.githubusercontent.com/render/math?math=n_e"> units derives the embedding of the same size that the one of the phonemes. The output of the layer is normalized in order not to have some FastText representations to activate more the next layers and thus to be more likely to be picked as a sequel, even though they are not the most realistic ones. This normalization can be considered as the activation function. A 10% dropout regularization and a batch normalization are applied to the output of this layer.
+The only architectures producing realistic results, were the ones which were symetric. That is to say that for both the phonemes and the FastText representation sides, the output of each layer needs to be of the same size. Thus, each verse's FastText representation needs to be turned into a <img src="https://render.githubusercontent.com/render/math?math=n_e">-dimension vector. Therefore, the matrix <img src="https://render.githubusercontent.com/render/math?math=V"> is turned into a <img src="https://render.githubusercontent.com/render/math?math=(s %2B 1, n_e)"> shaped matrix called. A fully-connected layer with <img src="https://render.githubusercontent.com/render/math?math=n_e"> units derives the embedding of the same size that the one of the phonemes. The output of the layer is normalized in order not to have some FastText representations to activate more the next layers and thus to be more likely to be picked as a sequel, even though they are not the most realistic ones. Indeed, shorter verses seem to have FastText representations with a norm closer to 1 than the longer verses. Thus, shorter verses were more likely to be picked up by the model. This normalization can be considered as the activation function. A 10% dropout regularization and a batch normalization are applied to the output of this layer.
 
 Similarly to the phonemes side, the <img src="https://render.githubusercontent.com/render/math?math=(s %2B 1, n_e)"> shaped matrix is split into a <img src="https://render.githubusercontent.com/render/math?math=(s, n_e)"> shaped matrix, called <img src="https://render.githubusercontent.com/render/math?math=V_e">,  and a <img src="https://render.githubusercontent.com/render/math?math=n_e">-dimension vector.  <img src="https://render.githubusercontent.com/render/math?math=V_e"> represents the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses and the vector the candidate verse. <img src="https://render.githubusercontent.com/render/math?math=V_e"> is input to a GRU layer. It creates an embedding of <img src="https://render.githubusercontent.com/render/math?math=n_s"> dimensions. The GRU can capture a suitable embedding of the theme and the grammatical natures (like gender and number) of the <img src="https://render.githubusercontent.com/render/math?math=s"> verses. The GRU may give more weight to the last verse or understand a pattern between each verse. Unlike the phonemes, side which had a LSTM, the additional cell state was not needed as the the theme and nature should be continuous from a verse to the next one.
 
@@ -137,9 +139,16 @@ The embeddings from booth the phonemes and the FastText sides are concatenated. 
 
 This <img src="https://render.githubusercontent.com/render/math?math=n_f">-dimension vector feeds the last layer which has a single unit and is fully-connected. Its activation function is the sigmoid. Thus the number is the probability of the candidate verse to be the sequel of the <img src="https://render.githubusercontent.com/render/math?math=s"> verses.
 
-Bellow the diagram of the architecture
+Bellow, the diagram of the architecture
 
 ![](archi.png)
+
+
+### Writing
+
+In order to have enclosing rhymes, the poem written will not keep only the most likely verse after having applied the neural network model. Similary to machine translation, a beam search algorithm is used here to keep the <img src="https://render.githubusercontent.com/render/math?math=k"> best sequences of verses which were derived by the model. Then, the model uses these <img src="https://render.githubusercontent.com/render/math?math=k"> sequences as the set of <img src="https://render.githubusercontent.com/render/math?math=s"> and compute the best sequel for eqch of them. The code is inspired from [7].
+
+### Usage
 
 Two parameters are important for the quality of the poem generated and the speed of execution:
 
@@ -161,5 +170,7 @@ Two parameters are important for the quality of the poem generated and the speed
 [6] [Kristina Toutanova, Dan Klein, Christopher Manning, and Yoram Singer. 2003. Feature-Rich Part-of-Speech Tagging with a Cyclic Dependency Network. In Proceedings of HLT-NAACL 2003, pp. 252-259.](https://nlp.stanford.edu/~manning/papers/tagging.pdf)
 
 [7] [Jason Brownlee. January 5 2018. "How to Implement a Beam Search Decoder for Natural Language Processing" from machinelearningmastery.com](https://machinelearningmastery.com/beam-search-decoder-natural-language-processing/)
+
+[8] [Théâtre classique](http://theatre-classique.fr/pages/programmes/PageEdition.php)
 
 ## License
