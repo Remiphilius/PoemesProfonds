@@ -144,9 +144,9 @@ Bellow, the diagram of the architecture
 ![](archi.png)
 
 
-### Writing
+### Writing poetry
 
-In order to have enclosing rhymes, the poem written will not keep only the most likely verse after having applied the neural network model. Similary to machine translation, a beam search algorithm is used here to keep the <img src="https://render.githubusercontent.com/render/math?math=k"> best sequences of verses which were derived by the model. Then, the model uses these <img src="https://render.githubusercontent.com/render/math?math=k"> sequences as the set of <img src="https://render.githubusercontent.com/render/math?math=s"> and compute the best sequel for eqch of them. The code is inspired from [7].
+In order to have enclosing rhymes, the poem written will not keep only the most likely verse after having applied the neural network model. Similary to machine translation, a beam search algorithm is used here to keep the <img src="https://render.githubusercontent.com/render/math?math=k"> best sequences of verses which were derived by the model. Then, the model uses these <img src="https://render.githubusercontent.com/render/math?math=k"> sequences as the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses and compute the best sequel for each of them. The code is inspired from [7].
 
 ### Usage
 
