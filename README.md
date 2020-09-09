@@ -135,7 +135,7 @@ Like the phonemes side, the candidate verse and the <img src="https://render.git
 
 #### Concatenation
 
-The embeddings from booth the phonemes and the FastText sides are concatenated. This derives a <img src="https://render.githubusercontent.com/render/math?math=2 n_{d2}">-dimension vector. This vector is input to a fully connected layer with <img src="https://render.githubusercontent.com/render/math?math=n_f"> units. Its activation function is again a leaky rectifier linear unit with &alpha; = 0.2. Again it is regularized with a 10% dropout. A batch normalization is applied to the output of this layer.
+The embeddings from booth the phonemes and the FastText sides are concatenated. This derives a <img src="https://render.githubusercontent.com/render/math?math=2 n_{d2}">-dimension vector. This vector is input to a fully connected layer with <img src="https://render.githubusercontent.com/render/math?math=n_f"> units. Its activation function is again a leaky rectifier linear unit with &alpha; = 0.2. Again it is regularized with a 10% dropout. A batch normalization is applied to the output of this layer. Adding more layers here was tried, but it was not as efficient as adding a layer to the phoneme and FastText sides.
 
 This <img src="https://render.githubusercontent.com/render/math?math=n_f">-dimension vector feeds the last layer which has a single unit and is fully-connected. Its activation function is the sigmoid. Thus the number is the probability of the candidate verse to be the sequel of the <img src="https://render.githubusercontent.com/render/math?math=s"> verses.
 
@@ -174,3 +174,7 @@ Two parameters are important for the quality of the poem generated and the speed
 [8] [Théâtre classique](http://theatre-classique.fr/pages/programmes/PageEdition.php)
 
 ## License
+
+© Rémi Desmarescaux, Ryan Ugolini
+
+Licensed under the [MIT License](LICENSE).
