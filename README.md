@@ -1,6 +1,6 @@
 # PoemesProfonds
 
-PoemesProfonds is a project created to write automatically French poetry with neural networks. Two main neural networks are used to do so : a text-to-phoneme converter and a predictor that creates the best sequence of verses from a given single verse or given sequence of verses.
+PoemesProfonds is a project created to write automatically French poetry with neural networks. Two main neural networks are used to do so : a text-to-phoneme converter and a predictor that creates the best sequence of verses from a given single verse or a given sequence of verses.
 
 ## Table of contents
 
@@ -37,7 +37,7 @@ PoemesProfonds is a project created to write automatically French poetry with ne
 
 ## Text-to-phenomes converter
 
-In order to get the phonemes out of the verses from the poetry, a text-to-phonemes converter for French needed to be developped. Some words, especially proper nouns, may appear in poetry but may not in any database. Thus, a model based on neural networks was created so every verse has its phoneme representation.
+In order to get the phonemes out of the verses from the poetry, a text-to-phonemes converter for French needed to be developped. Some words, especially proper nouns, may appear in poetry but may not in any database. Thus, a model based on neural networks was created so every verse has its phonetic representation.
 
 The data to train the model on was found in [1]. Instead of using the International Phonetic Alphabet (IPA), a substitution alphabet is used as in [1]. It is the one described below:
 
@@ -52,7 +52,7 @@ The data to train the model on was found in [1]. Instead of using the Internatio
 |----------------------|-|------|-------|-|-|------|-|-------|-------|-|-|-------|------|------|-|-|------|-|
 |Corresponding character|a|E     |§      |j|o|O     |i|1      |5      |e|u|@      |°     |9     |w|y|8     |2|
 
-The model takes as input a word up to 25 lettres long and returns a phonetic transcription up to 21 phonemes long.
+The model takes as input a word up to 25 letters long and returns a phonetic transcription up to 21 phonemes long.
 
 The architecture of the model features an attention mechanism [2].
 
@@ -149,17 +149,17 @@ These verses are modeled by two different matrixes:
 
 A gated recurrent unit (GRU) layer is used to compute an embedding for each verse's phonemes. This type of layer was chosen because it considers the order of the phonemes to create the embedding. GRU layers have proven to be efficient while having fewer parameters to train than long short-term memory (LSTM) layers. Its activation is the hyperbolic tangent. The layer turns every of the <img src="https://render.githubusercontent.com/render/math?math=s %2B 1"> rows of the matrix <img src="https://render.githubusercontent.com/render/math?math=P"> from a <img src="https://render.githubusercontent.com/render/math?math=(l, n_p %2B 1)">-shaped matrix to a <img src="https://render.githubusercontent.com/render/math?math=n_e">-dimension vector. This layer creates a <img src="https://render.githubusercontent.com/render/math?math=(s %2B 1, n_e)">-shaped matrix. The last row is extracted from this matrix. So that a new <img src="https://render.githubusercontent.com/render/math?math=(s, n_e)">-shaped matrix <img src="https://render.githubusercontent.com/render/math?math=P_e">, representing the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses, and a <img src="https://render.githubusercontent.com/render/math?math=n_e">-dimension vector, reprensenting the candidate verse, are created.
 
-A LSTM layer is applied on the matrix <img src="https://render.githubusercontent.com/render/math?math=P_e">. It creates an embedding of the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses for which the model derives the best sequel. This embedding is a <img src="https://render.githubusercontent.com/render/math?math=n_s">-dimension vector. LSTM was chosen over GRU as it has an additionnal cell state vector which can be useful while creating an embedding considering better enclosing rhymes (*rimes croiées* and *rimes embrassées*). Once the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses is embedded, it has to be concatenated to the embedding of the verse which is a candidate for the sequel. This concatenation returns a <img src="https://render.githubusercontent.com/render/math?math=n_s %2B n_e">-dimension vector which represents the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses and the candidate verse.
+A LSTM layer is applied on the matrix <img src="https://render.githubusercontent.com/render/math?math=P_e">. It creates an embedding of the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses for which the model derives the best sequel. This embedding is a <img src="https://render.githubusercontent.com/render/math?math=n_s">-dimension vector. LSTM was chosen over GRU as it has an additionnal cell state vector which can be useful while creating an embedding considering better enclosing rhymes (*rimes croisées* and *rimes embrassées*). Once the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses is embedded, it has to be concatenated to the embedding of the verse which is a candidate for the sequel. This concatenation returns a <img src="https://render.githubusercontent.com/render/math?math=n_s %2B n_e">-dimension vector which represents the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses and the candidate verse.
 
 A fully-connected layer with <img src="https://render.githubusercontent.com/render/math?math=n_{d1}"> units is applied to the output of the previous concatenation. Another fully-connected layer with <img src="https://render.githubusercontent.com/render/math?math=n_{d2}"> units derives the ultimate embedding of the phonemes of the <img src="https://render.githubusercontent.com/render/math?math=s"> verses and the candidate verse. A leaky rectified linear unit with &alpha; = 0.2 is used as the activation function for these fully-connected layers. These layers are regularized with a 10% dropout. A batch normalization is also applied on these fully-connected layers to avoid vanishing or exploding gradients.
 
 #### FastText
 
-The only architectures producing realistic results, were the symetric ones. That is to say that for both the phonemes and the FastText representation sides, the output of each layer needs to be of the same size. Thus, each verse's FastText representation needs to be turned into a <img src="https://render.githubusercontent.com/render/math?math=n_e">-dimension vector like the phoneme embedding. Therefore, the matrix <img src="https://render.githubusercontent.com/render/math?math=V"> is turned into a <img src="https://render.githubusercontent.com/render/math?math=(s %2B 1, n_e)"> shaped matrix. A fully-connected layer with <img src="https://render.githubusercontent.com/render/math?math=n_e"> units derives the embedding of the same size as the one of the phonemes. The output of the layer is normalized in order not to have some FastText representations to activate more the next layers's units and thus to be more likely to be picked as a sequel, even though they are not the most realistic ones. Indeed, shorter verses seem to have FastText representations with a norm closer to 1 than the longer verses. Thus, shorter verses were more likely to be picked up by the model. This problem is thus fixed by this procedure. This normalization can be considered as the activation function. A 10% dropout regularization and a batch normalization are applied to the output of this layer.
+The only architectures producing realistic results, were the symetric ones. That is to say that for both the phonemes and the FastText representation sides, the output of each layer needs to be of the same size. Thus, each verse's FastText representation needs to be turned into a <img src="https://render.githubusercontent.com/render/math?math=n_e">-dimension vector like the phoneme embedding. Therefore, the matrix <img src="https://render.githubusercontent.com/render/math?math=V"> is turned into a <img src="https://render.githubusercontent.com/render/math?math=(s %2B 1, n_e)"> shaped matrix. A fully-connected layer with <img src="https://render.githubusercontent.com/render/math?math=n_e"> units derives the embedding of the same size as the one of the phonemes. The output of the layer is normalized in order not to have some FastText representations to activate more the next layers' units and thus to be more likely to be picked as a sequel, even though they are not the most realistic ones. Indeed, shorter verses seem to have FastText representations with a norm closer to 1 than the longer verses. Thus, shorter verses were more likely to be picked up by the model. This problem is thus fixed by this procedure. This normalization can be considered as the activation function. A 10% dropout regularization and a batch normalization are applied to the output of this layer.
 
 Similarly to the phonemes' side, the <img src="https://render.githubusercontent.com/render/math?math=(s %2B 1, n_e)"> shaped matrix is split into a <img src="https://render.githubusercontent.com/render/math?math=(s, n_e)"> shaped matrix, called <img src="https://render.githubusercontent.com/render/math?math=V_e">,  and a <img src="https://render.githubusercontent.com/render/math?math=n_e">-dimension vector. <img src="https://render.githubusercontent.com/render/math?math=V_e"> represents the set of <img src="https://render.githubusercontent.com/render/math?math=s"> verses and the stand-alone vector the candidate verse. <img src="https://render.githubusercontent.com/render/math?math=V_e"> is input to a GRU layer. It creates an embedding of <img src="https://render.githubusercontent.com/render/math?math=n_s"> dimensions. The GRU captures a relevant embedding of the theme and the grammatical natures (like gender and number) of the <img src="https://render.githubusercontent.com/render/math?math=s"> verses. The GRU may give more weight to the last verse or understand a pattern between each verse. Unlike the phonemes, side which had a LSTM, the additional cell state was not needed as the the theme and nature should be continuous from a verse to the next one.
 
-Like the phonemes' side, the candidate verse and the <img src="https://render.githubusercontent.com/render/math?math=s"> verses embedding are concatenated into a single <img src="https://render.githubusercontent.com/render/math?math=n_e %2B n_s">-dimension vector. It goes through two fully-connected layers with respectively <img src="https://render.githubusercontent.com/render/math?math=n_{d1}"> and <img src="https://render.githubusercontent.com/render/math?math=n_{d2}"> units. Each layer has a leaky rectifer linear unit with &alpha; = 0.2. They are regularized with a 10% dropout. A batch normalization is also applied to booth outputs.
+Like the phonemes' side, the candidate verse and the <img src="https://render.githubusercontent.com/render/math?math=s"> verses embedding are concatenated into a single <img src="https://render.githubusercontent.com/render/math?math=n_e %2B n_s">-dimension vector. It goes through two fully-connected layers with respectively <img src="https://render.githubusercontent.com/render/math?math=n_{d1}"> and <img src="https://render.githubusercontent.com/render/math?math=n_{d2}"> units. Each layer has a leaky rectifer linear unit with &alpha; = 0.2. They are regularized with a 10% dropout. A batch normalization is also applied to both outputs.
 
 #### Concatenation
 
@@ -178,7 +178,7 @@ In order to generate enclosing rhymes, the poem written will not keep only the m
 
 ### Models
 
-There are two models available to create the sequences. The first one is the most precise but it about twelve times longer to compute than the second one which produced slighly less good results. For both of them: <img src="https://render.githubusercontent.com/render/math?math=s"> = 8, <img src="https://render.githubusercontent.com/render/math?math=n_p"> = 38, <img src="https://render.githubusercontent.com/render/math?math=l"> = 51.
+There are two models available to create the sequences. The first one is the most precise but its computation time is twelve times longer than the second one which produced slighly less good results. For both of them: <img src="https://render.githubusercontent.com/render/math?math=s"> = 8, <img src="https://render.githubusercontent.com/render/math?math=n_p"> = 38, <img src="https://render.githubusercontent.com/render/math?math=l"> = 51.
 
 #### Focused
 
@@ -202,7 +202,7 @@ This model has 240,231 parameters.
 
 ### Usage
 
-The user have to write at least one verse by one self. The model writes a poem from it.
+The user has to write at least one verse by oneself. The model writes a poem from it.
 
 ```python
 import preprocessing as pp
@@ -229,7 +229,7 @@ poem = checheur.beam_search_write(["Après cette peine, emprisonné par l'ennui,",
                                   df=vers_test, vers_suivants=5, k=5, batch_size=512, split=100
                                   lecteur=lecteur, ft=ft)
 ```
-Two parameters are important for the quality of the poem generated and the speed of execution:
+Two parameters are important for the quality of the generated poem and the speed of execution:
 
 - **test_size**: amount of the poems in the data to pick the verses from to write the sequel
 - **k**: beam width
