@@ -9,7 +9,7 @@ PoemesProfonds is a project created to write automatically French poetry with ne
     * [Consonants](#consonants)
     * [Voyels and Semi-voyels](#voyels-and-semi-voyels)
     * [Installation](#installation)
-    * [Usage](#usage)
+    * [Usages](#usages)
 * [Best sequence of verses](#best-sequence-of-verses)
     * [Data](#data)
     * [Neural network](#neural-network)
@@ -76,7 +76,7 @@ ltr2idx, phon2idx, Tx, Ty = pp.chars2idx(df_w2p)
 model_lire = load_model(os.path.join(".", "models", "lecteur", "CE1_T12_l10.h5"))
 lecteur = Lecteur(Tx, Ty, ltr2idx, phon2idx, dico_u, dico_m, n_brnn1=90, n_h1=80, net=model_lire, blank="_")
 ```
-### Usage
+### Usages
 
 There are three main methods in the class *Lecteur*.
 
@@ -257,34 +257,34 @@ poem = checheur.beam_search_write(liste_vers=["Après cette peine emprisonné par 
 
 ### Example
 
-*Harry* :
-Après cette peine, emprisonné par l'ennui,
-Je suis mon cher ami très heureux de te voir.
-J'en attends peu de chose, et brûle de le voir.
-Passés auprès de toi, blonde soeur d'Ophélie,
-Que se borne en effet le roman de ma vie.
-Vous aviez désolé les pays d'alentour,
-Égare votre coeur, vous séduit en ce jour.
+*Harry* : <br/>
+Après cette peine, emprisonné par l'ennui,<br/>
+Je suis mon cher ami très heureux de te voir.<br/>
+J'en attends peu de chose, et brûle de le voir.<br/>
+Passés auprès de toi, blonde soeur d'Ophélie,<br/>
+Que se borne en effet le roman de ma vie.<br/>
+Vous aviez désolé les pays d'alentour,<br/>
+Égare votre coeur, vous séduit en ce jour.<br/>
 
-*Dauphin* :
-Après cette peine, emprisonné par l'ennui,
-Je suis mon cher ami très heureux de te voir.
-J'en attends peu de chose, et brûle de le voir.
-Passés auprès de toi, blonde soeur d'Ophélie,
-Que se borne en effet le roman de ma vie.
-Vous aviez désolé les pays d'alentour,
-Que tous les Citoyens vous rendent tour à tour.
+*Dauphin* :<br/>
+Après cette peine, emprisonné par l'ennui,<br/>
+Je suis mon cher ami très heureux de te voir.<br/>
+J'en attends peu de chose, et brûle de le voir.<br/>
+Passés auprès de toi, blonde soeur d'Ophélie,<br/>
+Que se borne en effet le roman de ma vie.<br/>
+Vous aviez désolé les pays d'alentour,<br/>
+Que tous les Citoyens vous rendent tour à tour.<br/>
 
-*Élu* :
-Après cette peine, emprisonné par l'ennui,
-Je suis mon cher ami très heureux de te voir.
-J'en attends peu de chose, et brûle de le voir.
-Passés auprès de toi, blonde soeur d'Ophélie,
-Que se borne en effet le roman de ma vie.
-Vous aviez désolé les pays d'alentour,
-Qu'un peu de vanité se sent dans vos atours.
+*Élu* :<br/>
+Après cette peine, emprisonné par l'ennui,<br/>
+Je suis mon cher ami très heureux de te voir.<br/>
+J'en attends peu de chose, et brûle de le voir.<br/>
+Passés auprès de toi, blonde soeur d'Ophélie,<br/>
+Que se borne en effet le roman de ma vie.<br/>
+Vous aviez désolé les pays d'alentour,<br/>
+Qu'un peu de vanité se sent dans vos atours.<br/>
 
-*Harry* is the third most likely, *Dauphin* the second and *Élu* is the most likely. There are three results displayed thanks to the beam seach (when k = 2, *Harry* is not displayed as it is not computed). These poems was got with **k** = 5, **vers_suivants** = 5 and the model **fast**.
+*Harry* is the third most likely, *Dauphin* the second and *Élu* is the most likely. There are three results displayed thanks to the beam seach (when k = 2, *Harry* is not displayed as it is not computed). These poems was got with k = 5, vers_suivants = 5 and the model fast.
 
 ## Possible evolutions
 
