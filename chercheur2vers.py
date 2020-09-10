@@ -519,13 +519,15 @@ class Chercheur2Vers:
                 print("Nouveau vers")
             else:
                 print("{} nouveaux vers".format(n_vers_suivant + 1))
-            print("Harry :")
-            print("\n".join([vers for vers in kbest[2][0]]))
-            print("\n")
-            print("Dauphin :")
-            print("\n".join([vers for vers in kbest[1][0]]))
-            print("\n")
-            print("Élu :")
+            if k >= 3:
+                print("Harry :")
+                print("\n".join([vers for vers in kbest[2][0]]))
+                print("\n")
+            if k >= 2:
+                print("Dauphin :")
+                print("\n".join([vers for vers in kbest[1][0]]))
+                print("\n")
+                print("Élu :")
             print("\n".join([vers for vers in kbest[0][0]]))
             print("\n")
             print("\n")
