@@ -481,7 +481,7 @@ class Chercheur2Vers:
     def beam_search_write(self, liste_vers, df, vers_suivants=4, k=3, split=5, batch_size=128, accelerator=None,
                           **kwargs):
         lecteur = kwargs.get("lecteur", None)
-        ft = kwargs.get("fr", None)
+        ft = kwargs.get("ft", None)
         mphon_prec = kwargs.get("mphon_prec", None)
         mvect_prec = kwargs.get("mvect_prec", None)
 

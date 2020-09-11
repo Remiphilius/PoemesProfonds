@@ -490,8 +490,8 @@ class Lecteur:
                 x[i, j, lettre] = 1
 
         # predictions
-        h0 = csr_matrix((m, self.n_h1))
-        c0 = csr_matrix((m, self.n_h1))
+        h0 = np.zeros((m, self.n_h1))
+        c0 = np.zeros((m, self.n_h1))
         y = self.net.predict(x=[x, c0, h0])
 
         # dictionnaire indices vers phoneme
